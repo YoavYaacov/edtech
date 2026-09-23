@@ -1,0 +1,17 @@
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.label { font-size: var(--fs-sm); font-weight: 500; }
+.input {
+  min-height: 46px;
+  padding-inline: var(--space-4);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  transition: border-color 120ms ease;
+}
+.input:hover { border-color: var(--lavender-200); }
+.input:focus-visible { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--lavender-200); }
+/* LTR inputs (email) keep RTL-side alignment so the form edge stays straight */
+.input[dir='ltr'] { text-align: end; }
+.invalid { border-color: var(--rose-700); }
+.hint { font-size: var(--fs-xs); color: var(--text-muted); }
+.error { font-size: var(--fs-xs); color: var(--danger); }

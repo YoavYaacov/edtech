@@ -1,0 +1,20 @@
+.logo { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; color: var(--text); }
+.node {
+  display: inline-flex;
+  direction: ltr;
+  border: 2px solid var(--lavender-700);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--lavender-50);
+}
+.value { width: 16px; height: 18px; }
+.next {
+  width: 12px; height: 18px;
+  border-inline-start: 2px solid var(--lavender-700);
+  display: grid; place-items: center;
+}
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--lavender-700); }
+.md .word { font-size: var(--fs-lg); }
+.lg .word { font-size: var(--fs-xl); }
+.lg .value { width: 22px; height: 24px; }
+.lg .next { width: 16px; height: 24px; }
