@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ChevronRight, Lock, Plus, RotateCcw, Send, Trash2, X, XCircle } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
@@ -16,10 +16,11 @@ import {
   publishAssignment, removeAssignmentQuestion, removeRecipient, reorderAssignmentQuestions, setAssignmentClosed,
   unpublishAssignment, updateAssignment, updateAssignmentQuestion,
 } from './assignmentsApi';
-import { fetchEnrollments } from '../content/contentApi';
+import { fetchEnrollments, fetchTopics } from '../content/contentApi';
+import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
 import { fetchQuestions } from '../questions/questionsApi';
 import { useAsync } from '../../lib/useAsync';
-import { assignmentLabels as AL, assignments as t, common, errors, nav } from '../../i18n/he';
+import { assignmentLabels as AL, assignments as t, common, errors, nav, questionLabels as QL, questions as qt } from '../../i18n/he';
 import styles from './assignments.module.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -90,13 +91,21 @@ export default function AssignmentPage() {
         <Badge tone={statusTone[a.status]}>{AL.status[a.status]}</Badge>
         <div className={styles.actionsRow}>
           {isDraft && <Button variant="dangerGhost" icon={Trash2} onClick={() => setAction('delete')}>{t.deleteDraft}</Button>}
-          {isDraft && <Button icon={Send} onClick={() => setAction('publish')}>{t.publish}</Button>}
-          {a.status === 'published' && <Button variant="ghost" icon={RotateCcw} onClick={() => setAction('unpublish')}>{t.unpublish}</Button>}
-          {a.status === 'published' && <Button variant="secondary" icon={XCircle} onClick={() => setAction('close')}>{t.close}</Button>}
-          {a.status === 'closed' && <Button variant="secondary" icon={RotateCcw} loading={busy}
+          {isDraft && <Button icon={Send} title={t.lifecycleHelp.draft} onClick={() => setAction('publish')}>{t.publish}</Button>}
+          {a.status === 'published' && <Button variant="ghost" icon={RotateCcw} title={t.lifecycleHelp.unpublish}
+            onClick={() => setAction('unpublish')}>{t.unpublish}</Button>}
+          {a.status === 'published' && <Button variant="secondary" icon={XCircle} title={t.lifecycleHelp.close}
+            onClick={() => setAction('close')}>{t.close}</Button>}
+          {a.status === 'closed' && <Button variant="secondary" icon={RotateCcw} loading={busy} title={t.lifecycleHelp.reopen}
             onClick={() => runAction('reopen')}>{t.reopen}</Button>}
         </div>
       </div>
+      <ul className={styles.lifecycleHelp}>
+        {isDraft && <li>{t.lifecycleHelp.draft}</li>}
+        {a.status === 'published' && <li>{t.lifecycleHelp.close}</li>}
+        {a.status === 'published' && <li>{t.lifecycleHelp.unpublish}</li>}
+        {a.status === 'closed' && <li>{t.lifecycleHelp.reopen}</li>}
+      </ul>
       {message.text && <p className={message.kind === 'error' ? styles.errorNote : styles.successNote} role="status">{message.text}</p>}
 
       <DetailsPanel assignment={a} onSaved={aQ.reload} />
@@ -160,12 +169,28 @@ function DetailsPanel({ assignment, onSaved }) {
 function QuestionsPanel({ assignment, items, onChanged }) {
   const isDraft = assignment.status === 'draft';
   const [picking, setPicking] = useState(false);
-  const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Same filtering as the question bank (the course is fixed by the assignment).
+  const [searchText, setSearchText] = useState('');
+  const [search, setSearch] = useState('');
+  const [f, setF] = useState({ topic: '', difficulty: '', source: '', status: 'active' });
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchText), 350); // live search, debounced
+    return () => clearTimeout(timer);
+  }, [searchText]);
+  const topicsQ = useAsync(
+    () => (picking ? fetchTopics(assignment.course_id) : Promise.resolve({ data: [], error: null })), [picking, assignment.course_id]);
+  const topicList = topicsQ.data ?? [];
+  const topicIds = f.topic ? descendantIds(topicList, f.topic) : [];
   const bank = useAsync(
-    () => (picking ? fetchQuestions({ courseId: assignment.course_id, status: 'active', search }) : Promise.resolve({ data: [], error: null })),
-    [picking, search, assignment.course_id]);
+    () => (picking
+      ? fetchQuestions({ courseId: assignment.course_id, topicIds, difficulty: f.difficulty, sourceType: f.source, status: f.status, search })
+      : Promise.resolve({ data: [], error: null })),
+    [picking, search, assignment.course_id, topicIds.join(','), f.difficulty, f.source, f.status]);
+  const setFilter = (key) => (e) => setF((v) => ({ ...v, [key]: e.target.value }));
+  const statusOptions = [{ value: 'active', label: qt.activeStatuses },
+    ...toOptions(QL.status).filter((o) => o.value !== 'archived')];
 
   const used = new Set(items.map((x) => x.question_id));
   const available = (bank.data ?? []).filter((q) => !used.has(q.id));
@@ -231,15 +256,39 @@ function QuestionsPanel({ assignment, items, onChanged }) {
       {isDraft && picking && (
         <div className={styles.picker}>
           <div className={styles.pickerHead}>
-            <TextField label={t.pickerSearch} value={search} onChange={(e) => setSearch(e.target.value)} />
+            <h3 className={styles.pickerTitle}>{t.pickerFiltersTitle}</h3>
             <Button variant="ghost" onClick={() => setPicking(false)}>{t.closePicker}</Button>
           </div>
+          <div className={styles.pickerFilters}>
+            <div className={styles.full}>
+              <TextField label={t.pickerSearch} type="search" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+            </div>
+            <div className={styles.full}>
+              <Select label={qt.filterTopic} placeholder={common.all} value={f.topic} onChange={setFilter('topic')}
+                options={flattenTree(buildTree(topicList.filter((x) => !x.is_archived)))
+                  .map((x) => ({ value: x.id, label: `${'\u2003'.repeat(x.level - 1)}${x.title}` }))} />
+            </div>
+            <Select label={qt.filterDifficulty} placeholder={common.all} value={f.difficulty} onChange={setFilter('difficulty')}
+              options={toOptions(QL.difficulty)} />
+            <Select label={qt.filterSource} placeholder={common.all} value={f.source} onChange={setFilter('source')}
+              options={toOptions(QL.sourceType)} />
+            <Select label={qt.filterStatus} value={f.status} onChange={setFilter('status')} options={statusOptions} />
+          </div>
           {bank.status === 'loading' && <LoadingState />}
+          {bank.status === 'error' && <ErrorState message={errors.generic} onRetry={bank.reload} />}
           {bank.status === 'ready' && available.length === 0 && <p className={styles.muted}>{t.pickerEmpty}</p>}
+          {bank.status === 'ready' && available.length > 0 && <p className={styles.muted}>{t.pickerCount(available.length)}</p>}
           <ul className={styles.pickList}>
             {available.map((q) => (
               <li key={q.id} className={styles.pickRow}>
-                <span>{q.title}</span>
+                <span className={styles.pickText}>
+                  <span className={styles.pickTitle}>{q.title}</span>
+                  <span className={styles.pickMeta}>
+                    <Badge tone="sky">{QL.difficulty[q.difficulty]}</Badge>
+                    <Badge>{QL.sourceType[q.source_type]}{q.source_year ? ` ${q.source_year}` : ''}</Badge>
+                    {q.status === 'draft' && <Badge tone="butter">{QL.status.draft}</Badge>}
+                  </span>
+                </span>
                 <Button variant="secondary" icon={Plus} disabled={busy}
                   onClick={() => run(() => addAssignmentQuestion(assignment.id, q.id, nextPos))}>{t.add}</Button>
               </li>

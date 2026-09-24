@@ -75,3 +75,7 @@
   .grid { grid-template-columns: 1fr; }
   .sideCol { position: static; }
 }
+
+/* revealed solution: full width below the work area (Phase 3 fix 4) */
+.solutionWide { gap: var(--space-4); }
+.solutionWide .hintLabel { font-size: var(--fs-sm); }

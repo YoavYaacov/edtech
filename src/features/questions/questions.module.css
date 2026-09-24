@@ -99,3 +99,9 @@
   border: none; border-radius: var(--radius-sm); background: transparent; color: inherit; cursor: pointer;
 }
 .flash button:hover { background: var(--surface); }
+
+/* Phase 3 fix 3: long topic names stay readable */
+.filterWide { grid-column: span 2; }
+.qTitle { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .filterWide { grid-column: 1 / -1; } }
+.topicOption span:first-of-type { overflow-wrap: anywhere; }

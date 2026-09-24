@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Eye, Lightbulb, Lock, Pencil, Send } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -15,32 +15,41 @@ import styles from './workspace.module.css';
 
 const answerState = (a) => (!a ? 'none' : a.status === 'submitted' ? 'submitted' : 'draft');
 
+// Loads the data, then mounts the view. The view builds its state from the
+// loaded data at creation time, so no render ever sees an empty answer map.
+// (Root cause of the autosave bug: the map used to be filled in a useEffect
+// AFTER the first render, and the editor had already initialised itself from
+// the starter code.)
 export default function WorkspacePage() {
   const { assignmentId } = useParams();
-  const [params, setParams] = useSearchParams();
   const ws = useAsync(() => fetchWorkspace(assignmentId), [assignmentId]);
-  const [answers, setAnswers] = useState({});   // aqId → { content, serverContent, status, submitted_at, exists }
-  const [hints, setHints] = useState({});       // aqId → [{ level, content_md }]
-  const [solutions, setSolutions] = useState({}); // aqId → { solution_code, explanation_md }
-
-  useEffect(() => {
-    if (ws.status !== 'ready' || !ws.data) return;
-    const a = {};
-    for (const x of ws.data.answers) {
-      a[x.assignment_question_id] = { content: x.content, serverContent: x.content, status: x.status, submitted_at: x.submitted_at, exists: true };
-    }
-    const h = {};
-    for (const x of ws.data.hints) (h[x.assignment_question_id] ??= []).push(x);
-    const s = {};
-    for (const x of ws.data.solutions) s[x.assignment_question_id] = x;
-    setAnswers(a); setHints(h); setSolutions(s);
-  }, [ws.status, ws.data]);
 
   if (ws.status === 'loading') return <LoadingState />;
   if (ws.status === 'error') return <ErrorState message={errors.generic} onRetry={ws.reload} />;
   if (!ws.data) return <ErrorState message={t.notFound}><Link to="/student">{t.back}</Link></ErrorState>;
+  return <WorkspaceView key={assignmentId} data={ws.data} />;
+}
 
-  const { assignment, questions } = ws.data;
+function initialAnswers(rows) {
+  const a = {};
+  for (const x of rows) {
+    a[x.assignment_question_id] = { content: x.content, serverContent: x.content, status: x.status, submitted_at: x.submitted_at, exists: true };
+  }
+  return a;
+}
+function groupHints(rows) {
+  const h = {};
+  for (const x of rows) (h[x.assignment_question_id] ??= []).push(x);
+  return h;
+}
+
+function WorkspaceView({ data }) {
+  const [params, setParams] = useSearchParams();
+  const [answers, setAnswers] = useState(() => initialAnswers(data.answers));   // aqId → { content, serverContent, status, … }
+  const [hints, setHints] = useState(() => groupHints(data.hints));             // aqId → [{ level, content_md }]
+  const [solutions, setSolutions] = useState(() => Object.fromEntries(data.solutions.map((x) => [x.assignment_question_id, x])));
+
+  const { assignment, questions } = data;
   const n = questions.length;
   const index = Math.min(Math.max(Number(params.get('q') || 1), 1), Math.max(n, 1)) - 1;
   const aq = questions[index];
@@ -108,20 +117,29 @@ export default function WorkspacePage() {
               onSaved={(content) => patchAnswer(aq.id, { serverContent: content, exists: true })}
               onSubmitted={(submitted_at) => patchAnswer(aq.id, { status: 'submitted', submitted_at })} />
 
-            <div className={styles.navRow}>
-              <Button variant="secondary" icon={ChevronRight} disabled={index === 0} onClick={() => go(index - 1)}>{t.prev}</Button>
-              <Button variant="secondary" disabled={index >= n - 1} onClick={() => go(index + 1)}>
-                {t.next}<ChevronLeft size={18} aria-hidden="true" />
-              </Button>
-            </div>
           </main>
 
           <aside className={styles.sideCol}>
             <HintsPanel aq={aq} revealed={hints[aq.id] ?? []}
               onRevealed={(list) => setHints((m) => ({ ...m, [aq.id]: list }))} />
-            <SolutionPanel aq={aq} submitted={answers[aq.id]?.status === 'submitted'} solution={solutions[aq.id]}
-              onRevealed={(sol) => setSolutions((m) => ({ ...m, [aq.id]: sol }))} />
+            {!solutions[aq.id] && (
+              <SolutionPanel aq={aq} submitted={answers[aq.id]?.status === 'submitted'} solution={null}
+                onRevealed={(sol) => setSolutions((m) => ({ ...m, [aq.id]: sol }))} />
+            )}
           </aside>
+        </div>
+      )}
+
+      {aq && solutions[aq.id] && (
+        <SolutionPanel aq={aq} submitted solution={solutions[aq.id]} wide onRevealed={() => {}} />
+      )}
+
+      {aq && (
+        <div className={styles.navRow}>
+          <Button variant="secondary" icon={ChevronRight} disabled={index === 0} onClick={() => go(index - 1)}>{t.prev}</Button>
+          <Button variant="secondary" disabled={index >= n - 1} onClick={() => go(index + 1)}>
+            {t.next}<ChevronLeft size={18} aria-hidden="true" />
+          </Button>
         </div>
       )}
     </div>
@@ -236,7 +254,7 @@ function HintsPanel({ aq, revealed, onRevealed }) {
   );
 }
 
-function SolutionPanel({ aq, submitted, solution, onRevealed }) {
+function SolutionPanel({ aq, submitted, solution, onRevealed, wide = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   if (!aq.has_solution) return null;
@@ -253,12 +271,12 @@ function SolutionPanel({ aq, submitted, solution, onRevealed }) {
   }
 
   return (
-    <section className={`${styles.card} ${styles.solution}`} aria-labelledby="solution-title">
+    <section className={`${styles.card} ${styles.solution} ${wide ? styles.solutionWide : ''}`} aria-labelledby="solution-title">
       <h3 id="solution-title" className={styles.sideTitle}><Eye size={18} aria-hidden="true" />{t.solution}</h3>
       {solution ? (
         <>
           {solution.solution_code?.trim() && (
-            <CodeEditor value={solution.solution_code} readOnly minHeight="80px"
+            <CodeEditor value={solution.solution_code} readOnly minHeight={wide ? '160px' : '80px'}
               language={aq.programming_language || 'java'} label={t.solution} />
           )}
           {solution.explanation_md?.trim() && (

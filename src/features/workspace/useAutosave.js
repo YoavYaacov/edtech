@@ -31,7 +31,8 @@ export function useAutosave({ value, serverValue, save, onSaved, delay = 1200, r
     const job = (async () => {
       try {
         const { data, error } = await saveRef.current(v);
-        if (error) throw error;
+        // "נשמר" only after the server confirmed the save (a missing timestamp is a failure).
+        if (error || data == null) throw error ?? new Error('save not confirmed');
         confirmed.current = v;
         onSavedRef.current?.(v, data);
         if (mounted.current) setSavedAt(data ?? new Date().toISOString());

@@ -116,10 +116,10 @@ export default function QuestionBankPage() {
         <Select label={t.filterCourse} placeholder={common.all} value={f.course}
           options={courses.map((c) => ({ value: c.id, label: c.is_archived ? `${c.title} (${common.archived})` : c.title }))}
           onChange={(e) => setFilter('course', e.target.value)} />
-        <Select label={t.filterTopic} placeholder={common.all} value={f.topic} disabled={!f.course}
+        <div className={styles.filterWide}><Select label={t.filterTopic} placeholder={common.all} value={f.topic} disabled={!f.course}
           options={flattenTree(buildTree(topicList.filter((x) => !x.is_archived)))
             .map((x) => ({ value: x.id, label: `${'\u2003'.repeat(x.level - 1)}${x.title}` }))}
-          onChange={(e) => setFilter('topic', e.target.value)} />
+          onChange={(e) => setFilter('topic', e.target.value)} /></div>
         <Select label={t.filterDifficulty} placeholder={common.all} value={f.difficulty}
           options={toOptions(L.difficulty)} onChange={(e) => setFilter('difficulty', e.target.value)} />
         <Select label={t.filterSource} placeholder={common.all} value={f.source}

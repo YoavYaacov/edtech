@@ -70,3 +70,18 @@
 @media (max-width: 720px) {
   .createGrid, .policies { grid-template-columns: 1fr; }
 }
+
+/* Phase 3 fixes: picker filters, readable long text, lifecycle help */
+.lifecycleHelp { list-style: none; margin: calc(-1 * var(--space-2)) 0 var(--space-4); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); background: var(--sky-50); color: var(--sky-700); font-size: var(--fs-sm);
+  display: flex; flex-direction: column; gap: var(--space-1); }
+.pickerTitle { font-size: var(--fs-md); }
+.pickerHead { justify-content: space-between; align-items: center; }
+.pickerFilters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.full { grid-column: 1 / -1; }
+.pickRow { align-items: flex-start; }
+.pickText { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
+.pickTitle { font-weight: 500; overflow-wrap: anywhere; line-height: 1.5; }
+.pickMeta { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.qTitle { overflow-wrap: anywhere; }
+.table th { white-space: normal; min-width: 140px; max-width: 260px; overflow: visible; line-height: 1.4; vertical-align: bottom; }

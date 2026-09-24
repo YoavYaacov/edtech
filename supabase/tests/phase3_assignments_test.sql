@@ -148,6 +148,23 @@ begin
   raise notice 'PASS P6: autosave creates then updates one draft';
 end $$;
 
+-- P6b: autosave round-trip is exact (regression for the Phase 3 autosave bug):
+-- what the student saves is exactly what the workspace loads again.
+do $$
+declare
+  v_q2 uuid := current_setting('test.q2')::uuid;
+  v_text text := E'public static int count(Node<Integer> head)\n{\n\tint c = 0; // מונה\n    return c;  \n}\n\n  ';
+begin
+  perform public.save_answer(v_q2, 'גרסה 1');
+  perform public.save_answer(v_q2, 'גרסה 2');
+  perform public.save_answer(v_q2, v_text);
+  assert (select content from public.answers where assignment_question_id = v_q2) = v_text,
+         'FAIL: P6b saved content does not round-trip exactly';
+  assert (select status from public.answers where assignment_question_id = v_q2) = 'draft', 'FAIL: P6b status changed by autosave';
+  assert (select count(*) from public.answers where assignment_question_id = v_q2) = 1, 'FAIL: P6b duplicate rows';
+  raise notice 'PASS P6b: autosave round-trip is exact (newlines, tabs, Hebrew, trailing spaces)';
+end $$;
+
 do $$
 declare r jsonb; v_q1 uuid := current_setting('test.q1')::uuid;
 begin
@@ -183,6 +200,7 @@ begin
   r := public.reveal_solution(v_q1);
   assert r ->> 'ok' = 'true', 'FAIL: P8 reveal after submit';
   assert (select count(*) from public.assignment_question_solutions) = 1, 'FAIL: P8 solution not visible';
+  perform public.save_answer(current_setting('test.q2')::uuid, '   ');
   r := public.submit_answer(current_setting('test.q2')::uuid);
   assert r ->> 'reason' = 'empty', 'FAIL: P8 empty submit accepted';
   raise notice 'PASS P8: solution only after submit; submitted answer is frozen';
@@ -248,7 +266,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 do $$
 declare n int; r jsonb; v_a1 uuid := current_setting('test.a1')::uuid;
 begin
-  assert (select count(*) from public.answers) = 1, 'FAIL: P12 teacher cannot see the answer';
+  assert (select count(*) from public.answers) = 2, 'FAIL: P12 teacher does not see exactly the student''s 2 answers';
   assert (select count(*) from public.answer_submissions) = 1, 'FAIL: P12 teacher cannot see the submission';
   assert (select count(*) from public.question_reveals) = 3, 'FAIL: P12 teacher cannot see reveals';
   update public.answers set content = 'המורה שינה';
