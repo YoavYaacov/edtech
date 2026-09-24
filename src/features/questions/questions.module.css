@@ -84,3 +84,18 @@
   .qRow { grid-template-columns: 1fr; }
   .qMeta { justify-content: flex-start; }
 }
+
+/* success message (decision 22) */
+.flash {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--success-tint); color: var(--success); border: 1px solid var(--mint-200);
+  font-weight: 500;
+}
+.flash span { flex: 1; }
+.flash button {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: none; border-radius: var(--radius-sm); background: transparent; color: inherit; cursor: pointer;
+}
+.flash button:hover { background: var(--surface); }

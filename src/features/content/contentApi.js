@@ -82,3 +82,13 @@ export function fetchMyCourses(studentId) {
     .select('course:courses(id, title, code)')
     .eq('student_id', studentId);
 }
+
+// Safe delete (decision 24). The database decides; dryRun only reports.
+// Result: { deletable, reason?, questions?, students?, topics } or { deleted: true, topics }.
+export function deleteTopic(topicId, { dryRun }) {
+  return supabase.rpc('delete_topic', { p_topic_id: topicId, p_dry_run: dryRun });
+}
+
+export function deleteCourse(courseId, { dryRun }) {
+  return supabase.rpc('delete_course', { p_course_id: courseId, p_dry_run: dryRun });
+}

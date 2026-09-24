@@ -1,5 +1,6 @@
-import { Link, useSearchParams } from 'react-router-dom';
-import { FileQuestion, Library, Plus, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, FileQuestion, Library, Plus, Search, X } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Badge from '../../components/ui/Badge';
 import Select from '../../components/ui/Select';
@@ -10,11 +11,12 @@ import { fetchQuestions, LIST_LIMIT } from './questionsApi';
 import { useAsync } from '../../lib/useAsync';
 import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
 import { difficultyTone, statusTone } from './questionTones';
-import { common, errors, formatDate, questionLabels as L, questions as t } from '../../i18n/he';
+import { common, errors, flash, formatDate, questionLabels as L, questions as t } from '../../i18n/he';
 import styles from './questions.module.css';
 
 const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
 const FILTER_KEYS = ['course', 'topic', 'difficulty', 'source', 'status', 'q'];
+const SEARCH_DEBOUNCE_MS = 350;
 
 export default function QuestionBankPage() {
   const [params, setParams] = useSearchParams();
@@ -30,6 +32,42 @@ export default function QuestionBankPage() {
   const questionsQ = useAsync(
     () => fetchQuestions({ courseId: f.course, topicIds, difficulty: f.difficulty, sourceType: f.source, status, search: f.q }),
     [f.course, f.topic, topicIds.join(','), f.difficulty, f.source, status, f.q]);
+
+  // ---- live search (decision 23) -------------------------------------
+  const [searchText, setSearchText] = useState(f.q);
+  const pushedQ = useRef(f.q); // last value we wrote to the URL
+  useEffect(() => {
+    // URL changed from outside (e.g. "clear filters", back button) → follow it.
+    if (f.q !== pushedQ.current) { pushedQ.current = f.q; setSearchText(f.q); }
+  }, [f.q]);
+  useEffect(() => {
+    const target = searchText.trim() ? searchText : '';
+    if (target === pushedQ.current) return undefined;
+    const timer = setTimeout(() => {
+      pushedQ.current = target;
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (target) next.set('q', target); else next.delete('q');
+        return next;
+      }, { replace: true });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchText, setParams]);
+
+  // ---- success message after saving a question (decision 22) --------
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [flashMsg, setFlashMsg] = useState(location.state?.flash ?? '');
+  useEffect(() => {
+    // Drop it from history so a refresh doesn't show it again.
+    if (location.state?.flash) navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!flashMsg) return undefined;
+    const timer = setTimeout(() => setFlashMsg(''), 6000);
+    return () => clearTimeout(timer);
+  }, [flashMsg]);
+  const editorState = { bankSearch: location.search };
 
   function setFilter(key, value) {
     const next = new URLSearchParams(params);
@@ -56,15 +94,24 @@ export default function QuestionBankPage() {
   return (
     <>
       <PageHeader title={t.title} subtitle={t.subtitle}
-        actions={<Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} className={styles.linkButton}>
+        actions={<Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} state={editorState} className={styles.linkButton}>
           <Plus size={18} aria-hidden="true" />{t.newQuestion}</Link>} />
+
+      {flashMsg && (
+        <div className={styles.flash} role="status">
+          <CheckCircle2 size={20} aria-hidden="true" />
+          <span>{flashMsg}</span>
+          <button type="button" onClick={() => setFlashMsg('')} aria-label={flash.dismiss} title={flash.dismiss}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       <section className={styles.filters} aria-label={t.title}>
         <label className={styles.searchBox}>
           <Search size={18} aria-hidden="true" />
-          <input key={f.q} type="search" placeholder={t.search} aria-label={t.search} defaultValue={f.q}
-            onKeyDown={(e) => e.key === 'Enter' && setFilter('q', e.currentTarget.value)}
-            onBlur={(e) => e.currentTarget.value !== f.q && setFilter('q', e.currentTarget.value)} />
+          <input type="search" placeholder={t.search} aria-label={t.search} value={searchText}
+            onChange={(e) => setSearchText(e.target.value)} />
         </label>
         <Select label={t.filterCourse} placeholder={common.all} value={f.course}
           options={courses.map((c) => ({ value: c.id, label: c.is_archived ? `${c.title} (${common.archived})` : c.title }))}
@@ -94,14 +141,14 @@ export default function QuestionBankPage() {
           anyFilter
             ? <EmptyState icon={Search} tone="butter" title={t.noMatchTitle} body={t.noMatchBody} />
             : <EmptyState icon={FileQuestion} title={t.emptyTitle} body={t.emptyBody}
-                action={<Link to="/teacher/questions/new" className={styles.linkButton}>{t.newQuestion}</Link>} />
+                action={<Link to="/teacher/questions/new" state={editorState} className={styles.linkButton}>{t.newQuestion}</Link>} />
         ) : (
           <>
             <p className={styles.count}>{t.resultCount(list.length)}</p>
             <ul className={styles.qList}>
               {list.map((q) => (
                 <li key={q.id}>
-                  <Link to={`/teacher/questions/${q.id}`} className={`${styles.qRow} ${q.status === 'archived' ? styles.dim : ''}`}>
+                  <Link to={`/teacher/questions/${q.id}`} state={editorState} className={`${styles.qRow} ${q.status === 'archived' ? styles.dim : ''}`}>
                     <span className={styles.qTitle}>{q.title}</span>
                     <span className={styles.qMeta}>
                       <Badge tone={difficultyTone[q.difficulty]}>{L.difficulty[q.difficulty]}</Badge>

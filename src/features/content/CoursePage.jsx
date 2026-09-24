@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ChevronRight, Pencil } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Archive, ArchiveRestore, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -9,9 +9,10 @@ import { ErrorState, LoadingState } from '../../components/ui/States';
 import CourseForm from './CourseForm';
 import TopicTree from './TopicTree';
 import EnrollmentPanel from './EnrollmentPanel';
-import { fetchCourse, fetchTopics, updateCourse } from './contentApi';
+import { deleteCourse, fetchCourse, fetchTopics, updateCourse } from './contentApi';
+import { blockedReason, useSafeDelete } from './useSafeDelete';
 import { useAsync } from '../../lib/useAsync';
-import { common, courses as t, errors, languages, nav } from '../../i18n/he';
+import { common, courses as t, errors, flash, languages, nav, safeDelete as sd } from '../../i18n/he';
 import styles from './content.module.css';
 
 export default function CoursePage() {
@@ -22,6 +23,12 @@ export default function CoursePage() {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const del = useSafeDelete({
+    check: (id) => deleteCourse(id, { dryRun: true }),
+    remove: (id) => deleteCourse(id, { dryRun: false }),
+    onDeleted: () => navigate('/teacher/courses', { replace: true, state: { flash: flash.courseDeleted } }),
+  });
 
   if (course.status === 'loading') return <LoadingState />;
   if (course.status === 'error') return <ErrorState message={errors.generic} onRetry={course.reload} />;
@@ -73,15 +80,28 @@ export default function CoursePage() {
       </div>
 
       <div className={styles.dangerZone}>
-        {error && <p className={styles.errorNote} role="alert">{error}</p>}
+        {(error || del.error) && <p className={styles.errorNote} role="alert">{error || del.error}</p>}
         {c.is_archived ? (
           <Button variant="secondary" icon={ArchiveRestore} loading={busy} onClick={() => setArchived(false)}>{t.restoreCourse}</Button>
         ) : (
           <Button variant="ghost" icon={Archive} onClick={() => setConfirmArchive(true)}>{t.archiveCourse}</Button>
         )}
+        <Button variant="dangerGhost" icon={Trash2} loading={del.busy && !del.state} onClick={() => del.start(c)}>
+          {sd.deleteForever}
+        </Button>
       </div>
       <ConfirmDialog open={confirmArchive} title={t.archiveCourse} body={t.archiveCourseBody}
         confirmLabel={common.archive} busy={busy} onConfirm={() => setArchived(true)} onCancel={() => setConfirmArchive(false)} />
+      {del.state && (del.state.mode === 'confirm' ? (
+        <ConfirmDialog open danger title={sd.courseTitle(c.title)}
+          body={`${sd.courseBody(del.state.info.topics)} ${sd.irreversible}`}
+          confirmLabel={sd.deleteForever} busy={del.busy} onConfirm={del.confirm} onCancel={del.close} />
+      ) : (
+        <ConfirmDialog open title={sd.courseBlockedTitle}
+          body={`${blockedReason(del.state.info)} ${c.is_archived ? sd.alreadyArchivedHint : sd.archiveHint}`}
+          confirmLabel={c.is_archived ? null : sd.archiveInstead} cancelLabel={sd.close} busy={busy}
+          onConfirm={async () => { await setArchived(true); del.close(); }} onCancel={del.close} />
+      ))}
     </>
   );
 }

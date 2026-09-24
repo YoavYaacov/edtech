@@ -11,13 +11,15 @@ select version, name, applied_at from private.applied_migrations order by versio
 | # | File | Phase | Applied in production |
 |---|------|-------|-----------------------|
 | 1 | `20260922000100_foundation.sql` | 1 | yes (22.09.2026, manually) |
-| 2 | `20260923000000_migration_ledger.sql` | 2 | pending |
-| 3 | `20260923000100_content.sql` | 2 | pending |
-| 4 | `20260923000200_questions.sql` | 2 | pending |
+| 2 | `20260923000000_migration_ledger.sql` | 2 | yes (24.09.2026) |
+| 3 | `20260923000100_content.sql` | 2 | yes (24.09.2026) |
+| 4 | `20260923000200_questions.sql` | 2 | yes (24.09.2026) |
+| 5 | `20260924000100_safe_delete.sql` | 2 (שיפורים) | pending |
 
 After running a migration, update this table and the project doc in the same commit.
 
 Rules:
 - Never edit a migration that was already applied. Changes = a new file.
+- New foreign keys to `courses`, `topics` or `questions` must be `ON DELETE RESTRICT` (decision 25).
 - Run each file as one SQL Editor query (paste the whole file, Run). Files use `begin; … commit;`,
   so a failure changes nothing.

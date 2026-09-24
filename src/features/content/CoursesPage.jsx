@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Library, Plus } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
@@ -17,6 +17,8 @@ export default function CoursesPage() {
   const { status, data, reload } = useAsync(() => fetchCourses(), []);
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const location = useLocation();
+  const [flashMsg] = useState(location.state?.flash ?? '');
 
   const all = data ?? [];
   const visible = all.filter((c) => showArchived || !c.is_archived);
@@ -33,6 +35,7 @@ export default function CoursesPage() {
       <PageHeader title={t.title} subtitle={t.subtitle}
         actions={!creating && <Button icon={Plus} onClick={() => setCreating(true)}>{t.newCourse}</Button>} />
 
+      {flashMsg && <p className={styles.successNote} role="status">{flashMsg}</p>}
       {creating && (
         <section className={styles.panel}>
           <h2 className={styles.panelTitle}>{t.newCourse}</h2>

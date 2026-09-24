@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, EyeOff, Lock, Save } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import TextField from '../../components/ui/TextField';
-import TextArea from '../../components/ui/TextArea';
 import Select from '../../components/ui/Select';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
 import Markdown from '../../components/markdown/Markdown';
+import MarkdownField from '../../components/markdown/MarkdownField';
 import TopicPicker from './TopicPicker';
 import { fetchQuestion, saveQuestion } from './questionsApi';
 import { fetchCourses, fetchTopics } from '../content/contentApi';
 import { useAsync } from '../../lib/useAsync';
-import { common, errors, languages, nav, questionEditor as t, questionLabels as L } from '../../i18n/he';
+import { common, errors, flash, languages, nav, questionEditor as t, questionLabels as L } from '../../i18n/he';
 import styles from './questions.module.css';
 
 const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
@@ -62,6 +62,9 @@ export default function QuestionEditorPage() {
   const isNew = !questionId;
   const [search] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Filters of the bank page we came from, so we return to the same view.
+  const bankPath = `/teacher/questions${location.state?.bankSearch ?? ''}`;
 
   const coursesQ = useAsync(() => fetchCourses(), []);
   const questionQ = useAsync(
@@ -138,10 +141,10 @@ export default function QuestionEditorPage() {
     const { data: id, error: err } = await saveQuestion(toPayload(questionId, values));
     setBusy(false);
     if (err) return setError(t.saveError);
+    if (!id) return setError(t.saveError);
+    // Saving ends the task (decision 22): back to the bank with a success message.
     setSaved(values);
-    setNotice(t.saved);
-    if (isNew) navigate(`/teacher/questions/${id}`, { replace: true });
-    else questionQ.reload();
+    navigate(bankPath, { state: { flash: isNew ? flash.questionCreated : flash.questionUpdated } });
   }
 
   const courseOptions = coursesQ.data
@@ -152,7 +155,7 @@ export default function QuestionEditorPage() {
 
   return (
     <form onSubmit={handleSave} noValidate className={styles.editor}>
-      <Link to="/teacher/questions" className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.questionBank}</Link>
+      <Link to={bankPath} className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.questionBank}</Link>
       <PageHeader title={isNew ? t.newTitle : values.title || t.editTitle} />
 
       <section className={styles.panel} aria-labelledby="sec-details">
@@ -185,7 +188,7 @@ export default function QuestionEditorPage() {
           </div>
         </div>
         {tab === 'write' ? (
-          <TextArea label={t.body} hint={t.bodyHint} rows={10} value={values.body_md} onChange={set('body_md')} />
+          <MarkdownField label={t.body} hint={t.bodyHint} rows={10} value={values.body_md} onChange={set('body_md')} />
         ) : (
           <div className={styles.preview}>
             <Markdown empty={<p className={styles.muted}>{t.previewEmpty}</p>}>{values.body_md}</Markdown>
@@ -216,8 +219,8 @@ export default function QuestionEditorPage() {
         <h2 id="sec-hints" className={styles.panelTitle}><Lock size={18} aria-hidden="true" />{t.sectionHints}</h2>
         <p className={styles.muted}>{t.hintsExplain}</p>
         <div className={styles.grid2}>
-          <TextArea label={t.hint1} rows={3} value={values.hint1} onChange={set('hint1')} />
-          <TextArea label={t.hint2} rows={3} value={values.hint2} onChange={set('hint2')} />
+          <MarkdownField label={t.hint1} rows={3} value={values.hint1} onChange={set('hint1')} />
+          <MarkdownField label={t.hint2} rows={3} value={values.hint2} onChange={set('hint2')} />
         </div>
       </section>
 
@@ -230,13 +233,13 @@ export default function QuestionEditorPage() {
             <CodeEditor value={values.solution_code} onChange={set('solution_code')} language={lang} label={t.solutionCode} />
           </div>
         )}
-        <TextArea label={t.explanation} rows={4} value={values.explanation_md} onChange={set('explanation_md')} />
+        <MarkdownField label={t.explanation} rows={4} value={values.explanation_md} onChange={set('explanation_md')} />
       </section>
 
       <section className={`${styles.panel} ${styles.private}`} aria-labelledby="sec-notes">
         <h2 id="sec-notes" className={styles.panelTitle}><EyeOff size={18} aria-hidden="true" />{t.sectionNotes}</h2>
         <p className={styles.muted}>{t.notesExplain}</p>
-        <TextArea rows={3} value={values.teacher_notes} onChange={set('teacher_notes')} aria-label={t.sectionNotes} />
+        <MarkdownField rows={3} value={values.teacher_notes} onChange={set('teacher_notes')} aria-label={t.sectionNotes} />
       </section>
 
       <div className={styles.saveBar}>

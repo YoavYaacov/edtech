@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Archive, ArchiveRestore, FolderTree, Pencil, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, Archive, ArchiveRestore, FolderTree, Pencil, Plus, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/States';
 import { buildTree, nextPosition } from '../../lib/topicTree';
-import { createTopic, reorderSiblings, updateTopic } from './contentApi';
-import { common, errors, topics as t } from '../../i18n/he';
+import { createTopic, deleteTopic, reorderSiblings, updateTopic } from './contentApi';
+import { blockedReason, useSafeDelete } from './useSafeDelete';
+import { common, errors, safeDelete as sd, topics as t } from '../../i18n/he';
 import styles from './content.module.css';
 
 const MAX_LEVEL = 3;
@@ -41,6 +42,11 @@ export default function TopicTree({ courseId, topics, onChanged }) {
   const [confirm, setConfirm] = useState(null); // topic to archive
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const del = useSafeDelete({
+    check: (id) => deleteTopic(id, { dryRun: true }),
+    remove: (id) => deleteTopic(id, { dryRun: false }),
+    onDeleted: () => onChanged(),
+  });
 
   const visibleTopics = topics.filter((x) => showArchived || !x.is_archived);
   const tree = buildTree(visibleTopics);
@@ -111,6 +117,9 @@ export default function TopicTree({ courseId, topics, onChanged }) {
                     <button type="button" className={styles.iconBtn} title={common.archive} aria-label={`${common.archive}: ${node.title}`}
                       disabled={busy} onClick={() => setConfirm(node)}><Archive size={17} /></button>
                   )}
+                  <button type="button" className={`${styles.iconBtn} ${styles.iconDanger}`} title={sd.deleteForever}
+                    aria-label={`${sd.deleteForever}: ${node.title}`} disabled={busy || del.busy}
+                    onClick={() => del.start(node)}><Trash2 size={16} /></button>
                 </span>
               )}
             </div>
@@ -131,7 +140,7 @@ export default function TopicTree({ courseId, topics, onChanged }) {
     <section className={styles.panel} aria-labelledby="topics-title">
       <h2 id="topics-title" className={styles.panelTitle}>{t.title}</h2>
       <p className={styles.muted}>{t.explain}</p>
-      {error && <p className={styles.errorNote} role="alert">{error}</p>}
+      {(error || del.error) && <p className={styles.errorNote} role="alert">{error || del.error}</p>}
       <div className={styles.treeArea}>
         {tree.length === 0 ? (
           <EmptyState icon={FolderTree} tone="sky" title={t.emptyTitle} body={t.emptyBody} />
@@ -149,6 +158,16 @@ export default function TopicTree({ courseId, topics, onChanged }) {
       <ConfirmDialog open={Boolean(confirm)} title={t.archiveTitle} body={t.archiveBody}
         confirmLabel={common.archive} busy={busy}
         onConfirm={() => setArchived(confirm, true)} onCancel={() => setConfirm(null)} />
+      {del.state && (del.state.mode === 'confirm' ? (
+        <ConfirmDialog open danger title={sd.topicTitle(del.state.item.title)}
+          body={`${sd.topicBody(del.state.info.topics)} ${sd.irreversible}`}
+          confirmLabel={sd.deleteForever} busy={del.busy} onConfirm={del.confirm} onCancel={del.close} />
+      ) : (
+        <ConfirmDialog open title={sd.topicBlockedTitle}
+          body={`${blockedReason(del.state.info)} ${del.state.item.is_archived ? sd.alreadyArchivedHint : sd.archiveHint}`}
+          confirmLabel={del.state.item.is_archived ? null : sd.archiveInstead} cancelLabel={sd.close} busy={busy}
+          onConfirm={async () => { await setArchived(del.state.item, true); del.close(); }} onCancel={del.close} />
+      ))}
     </section>
   );
 }

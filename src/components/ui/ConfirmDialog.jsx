@@ -4,7 +4,8 @@ import { common } from '../../i18n/he';
 import styles from './ConfirmDialog.module.css';
 
 // Native <dialog>: focus trap, Esc to close and backdrop come for free.
-export default function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy }) {
+// confirmLabel = null → only a close button (used to explain why an action is blocked).
+export default function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy, danger = false, cancelLabel }) {
   const ref = useRef(null);
   useEffect(() => {
     const d = ref.current;
@@ -18,8 +19,10 @@ export default function ConfirmDialog({ open, title, body, confirmLabel, onConfi
       <h2 className={styles.title}>{title}</h2>
       {body && <p className={styles.body}>{body}</p>}
       <div className={styles.actions}>
-        <Button variant="ghost" onClick={onCancel} disabled={busy}>{common.cancel}</Button>
-        <Button onClick={onConfirm} loading={busy}>{confirmLabel}</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>{cancelLabel ?? common.cancel}</Button>
+        {confirmLabel && (
+          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={busy}>{confirmLabel}</Button>
+        )}
       </div>
     </dialog>
   );
