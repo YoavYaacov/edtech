@@ -46,3 +46,21 @@
 .courses { margin-bottom: var(--space-5); }
 .sectionLabel { font-size: var(--fs-sm); font-weight: 500; color: var(--text-muted); margin-bottom: var(--space-2); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Phase 3: student assignments */
+.assignmentList { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.assignmentCard {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+}
+.assignmentCard:hover { text-decoration: none; border-color: var(--lavender-200); background: var(--lavender-50); }
+.assignmentCard[data-state='new'] { border-inline-start: 5px solid var(--lavender-700); }
+.assignmentCard[data-state='progress'] { border-inline-start: 5px solid var(--butter-700); }
+.assignmentCard[data-state='done'] { border-inline-start: 5px solid var(--mint-700); }
+.assignmentTop { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.assignmentTitle { font-size: var(--fs-lg); font-weight: 600; }
+.assignmentMeta { font-size: var(--fs-sm); color: var(--text-muted); }
+.assignmentProgress { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-sm); color: var(--text-muted); }
+.track { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.fill { display: block; height: 100%; background: var(--mint-700); border-radius: 999px; }

@@ -17,6 +17,9 @@ import { LoadingState } from './components/ui/States';
 // Heavy teacher-only pages (code editor, markdown) load on demand.
 const QuestionBankPage = lazy(() => import('./features/questions/QuestionBankPage'));
 const QuestionEditorPage = lazy(() => import('./features/questions/QuestionEditorPage'));
+const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPage'));
+const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
+const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -37,10 +40,13 @@ export default function App() {
             <Route path="questions" element={<QuestionBankPage />} />
             <Route path="questions/new" element={<QuestionEditorPage key="new" />} />
             <Route path="questions/:questionId" element={<QuestionEditorPage />} />
+            <Route path="assignments" element={<AssignmentsPage />} />
+            <Route path="assignments/:assignmentId" element={<AssignmentPage />} />
           </Route>
 
           <Route path="/student" element={<RequireRole role="student"><StudentLayout /></RequireRole>}>
             <Route index element={<StudentHomePage />} />
+            <Route path="assignments/:assignmentId" element={<WorkspacePage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

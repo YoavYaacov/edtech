@@ -1,4 +1,4 @@
-import { FileQuestion, LayoutDashboard, Library, Users } from 'lucide-react';
+import { ClipboardList, FileQuestion, LayoutDashboard, Library, Users } from 'lucide-react';
 import AppShell from './AppShell';
 import { nav } from '../i18n/he';
 
@@ -8,6 +8,7 @@ const items = [
   { to: '/teacher/students', label: nav.students, icon: Users },
   { to: '/teacher/courses', label: nav.courses, icon: Library },
   { to: '/teacher/questions', label: nav.questionBank, icon: FileQuestion },
+  { to: '/teacher/assignments', label: nav.assignments, icon: ClipboardList },
 ];
 
 export default function TeacherLayout() {
