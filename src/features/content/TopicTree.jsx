@@ -1,0 +1,154 @@
+import { useState } from 'react';
+import { ArrowDown, ArrowUp, Archive, ArchiveRestore, FolderTree, Pencil, Plus } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { EmptyState } from '../../components/ui/States';
+import { buildTree, nextPosition } from '../../lib/topicTree';
+import { createTopic, reorderSiblings, updateTopic } from './contentApi';
+import { common, errors, topics as t } from '../../i18n/he';
+import styles from './content.module.css';
+
+const MAX_LEVEL = 3;
+const levelTone = { 1: 'lavender', 2: 'sky', 3: 'mint' };
+
+function InlineInput({ initial = '', placeholder, submitLabel, onSubmit, onCancel, autoFocus = false }) {
+  const [value, setValue] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  async function submit(e) {
+    e.preventDefault();
+    if (!value.trim()) return;
+    setBusy(true);
+    const ok = await onSubmit(value.trim());
+    setBusy(false);
+    if (ok) setValue('');
+  }
+  return (
+    <form className={styles.inlineForm} onSubmit={submit}>
+      <input className={styles.inlineInput} value={value} placeholder={placeholder} maxLength={200}
+        aria-label={placeholder} autoFocus={autoFocus} onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onCancel?.()} />
+      <Button type="submit" variant="secondary" loading={busy} disabled={!value.trim()}>{submitLabel}</Button>
+      {onCancel && <Button variant="ghost" onClick={onCancel} disabled={busy}>{common.cancel}</Button>}
+    </form>
+  );
+}
+
+export default function TopicTree({ courseId, topics, onChanged }) {
+  const [showArchived, setShowArchived] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [addingUnder, setAddingUnder] = useState(null); // topic id
+  const [confirm, setConfirm] = useState(null); // topic to archive
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const visibleTopics = topics.filter((x) => showArchived || !x.is_archived);
+  const tree = buildTree(visibleTopics);
+  const hasArchived = topics.some((x) => x.is_archived);
+
+  async function run(fn) {
+    setError('');
+    const { error: err } = await fn();
+    if (err) { setError(errors.generic); return false; }
+    await onChanged();
+    return true;
+  }
+
+  const add = (parentId) => (title) =>
+    run(() => createTopic({ courseId, parentId, title, position: nextPosition(topics, parentId) }))
+      .then((ok) => { if (ok && parentId) setAddingUnder(null); return ok; });
+
+  const rename = (id) => (title) => run(() => updateTopic(id, { title })).then((ok) => { if (ok) setEditingId(null); return ok; });
+
+  async function move(node, siblings, delta) {
+    const ids = siblings.map((s) => s.id);
+    const i = ids.indexOf(node.id);
+    const j = i + delta;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setBusy(true);
+    await run(() => reorderSiblings(ids, new Map(siblings.map((s) => [s.id, s.position]))));
+    setBusy(false);
+  }
+
+  async function setArchived(node, value) {
+    setBusy(true);
+    await run(() => updateTopic(node.id, { is_archived: value }));
+    setBusy(false);
+    setConfirm(null);
+  }
+
+  function renderList(nodes, level) {
+    return (
+      <ul className={styles.tree} data-level={level}>
+        {nodes.map((node, index) => (
+          <li key={node.id}>
+            <div className={`${styles.topicRow} ${node.is_archived ? styles.dim : ''}`}>
+              <Badge tone={levelTone[level]}>{t.levels[level]}</Badge>
+              {editingId === node.id ? (
+                <InlineInput autoFocus initial={node.title} placeholder={t.rename} submitLabel={common.save}
+                  onSubmit={rename(node.id)} onCancel={() => setEditingId(null)} />
+              ) : (
+                <span className={styles.topicTitle}>{node.title}</span>
+              )}
+              {node.is_archived && <Badge>{common.archived}</Badge>}
+              {editingId !== node.id && (
+                <span className={styles.rowActions}>
+                  <button type="button" className={styles.iconBtn} title={common.moveUp} aria-label={`${common.moveUp}: ${node.title}`}
+                    disabled={busy || index === 0} onClick={() => move(node, nodes, -1)}><ArrowUp size={17} /></button>
+                  <button type="button" className={styles.iconBtn} title={common.moveDown} aria-label={`${common.moveDown}: ${node.title}`}
+                    disabled={busy || index === nodes.length - 1} onClick={() => move(node, nodes, 1)}><ArrowDown size={17} /></button>
+                  {level < MAX_LEVEL && !node.is_archived && (
+                    <button type="button" className={styles.iconBtn} title={t.addChild(level)} aria-label={`${t.addChild(level)}: ${node.title}`}
+                      onClick={() => setAddingUnder(node.id)}><Plus size={17} /></button>
+                  )}
+                  <button type="button" className={styles.iconBtn} title={t.rename} aria-label={`${t.rename}: ${node.title}`}
+                    onClick={() => setEditingId(node.id)}><Pencil size={16} /></button>
+                  {node.is_archived ? (
+                    <button type="button" className={styles.iconBtn} title={common.restore} aria-label={`${common.restore}: ${node.title}`}
+                      disabled={busy} onClick={() => setArchived(node, false)}><ArchiveRestore size={17} /></button>
+                  ) : (
+                    <button type="button" className={styles.iconBtn} title={common.archive} aria-label={`${common.archive}: ${node.title}`}
+                      disabled={busy} onClick={() => setConfirm(node)}><Archive size={17} /></button>
+                  )}
+                </span>
+              )}
+            </div>
+            {addingUnder === node.id && (
+              <div className={styles.childAdd}>
+                <InlineInput autoFocus placeholder={t.newChildPlaceholder(level)} submitLabel={common.add}
+                  onSubmit={add(node.id)} onCancel={() => setAddingUnder(null)} />
+              </div>
+            )}
+            {node.children.length > 0 && renderList(node.children, level + 1)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <section className={styles.panel} aria-labelledby="topics-title">
+      <h2 id="topics-title" className={styles.panelTitle}>{t.title}</h2>
+      <p className={styles.muted}>{t.explain}</p>
+      {error && <p className={styles.errorNote} role="alert">{error}</p>}
+      <div className={styles.treeArea}>
+        {tree.length === 0 ? (
+          <EmptyState icon={FolderTree} tone="sky" title={t.emptyTitle} body={t.emptyBody} />
+        ) : renderList(tree, 1)}
+      </div>
+      <div className={styles.addUnit}>
+        <InlineInput placeholder={t.newUnit} submitLabel={t.addUnit} onSubmit={add(null)} />
+      </div>
+      {hasArchived && (
+        <label className={styles.toggle}>
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          {common.showArchived}
+        </label>
+      )}
+      <ConfirmDialog open={Boolean(confirm)} title={t.archiveTitle} body={t.archiveBody}
+        confirmLabel={common.archive} busy={busy}
+        onConfirm={() => setArchived(confirm, true)} onCancel={() => setConfirm(null)} />
+    </section>
+  );
+}

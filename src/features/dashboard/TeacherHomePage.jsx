@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Users, UserPlus } from 'lucide-react';
+import { FileQuestion, Library, Users, UserPlus } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
 import { useAuth } from '../auth/AuthProvider';
 import { useAsync } from '../../lib/useAsync';
 import { fetchMyStudents } from '../students/studentsApi';
+import { fetchCourses } from '../content/contentApi';
+import { fetchActiveQuestionCount } from '../questions/questionsApi';
 import { common, errors, teacherHome as t } from '../../i18n/he';
 import styles from './dashboard.module.css';
 
@@ -12,6 +14,9 @@ export default function TeacherHomePage() {
   const { user, profile } = useAuth();
   const { status, data, reload } = useAsync(() => fetchMyStudents(user.id), [user.id]);
   const active = data?.filter((r) => r.status === 'active') ?? [];
+  const coursesQ = useAsync(() => fetchCourses(), []);
+  const countQ = useAsync(() => fetchActiveQuestionCount(), []);
+  const activeCourses = coursesQ.data?.filter((c) => !c.is_archived) ?? [];
 
   return (
     <>
@@ -33,6 +38,22 @@ export default function TeacherHomePage() {
           <Link to="/teacher/students" className={styles.tileLink}>{t.manageStudents}</Link>
         </section>
       )}
+      <div className={styles.tiles}>
+        {coursesQ.status === 'ready' && (
+          <Link to="/teacher/courses" className={styles.miniTile} data-tone="lavender">
+            <Library size={20} aria-hidden="true" />
+            <span className={styles.tileTitle}>{t.coursesCard}</span>
+            <span className={styles.miniValue}>{t.coursesCount(activeCourses.length)}</span>
+          </Link>
+        )}
+        {countQ.status === 'ready' && (
+          <Link to="/teacher/questions" className={styles.miniTile} data-tone="mint">
+            <FileQuestion size={20} aria-hidden="true" />
+            <span className={styles.tileTitle}>{t.questionsCard}</span>
+            <span className={styles.miniValue}>{t.questionsCount(countQ.data)}</span>
+          </Link>
+        )}
+      </div>
     </>
   );
 }

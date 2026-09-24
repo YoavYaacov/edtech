@@ -1,0 +1,12 @@
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1.5;
+  padding: 1px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--surface-sunken); color: var(--text-muted);
+}
+.badge[data-tone='lavender'] { background: var(--lavender-50); color: var(--lavender-700); }
+.badge[data-tone='sky']      { background: var(--sky-50);      color: var(--sky-700); }
+.badge[data-tone='mint']     { background: var(--mint-50);     color: var(--mint-700); }
+.badge[data-tone='peach']    { background: var(--peach-50);    color: var(--peach-700); }
+.badge[data-tone='butter']   { background: var(--butter-50);   color: var(--butter-700); }
+.badge[data-tone='rose']     { background: var(--rose-50);     color: var(--rose-700); }

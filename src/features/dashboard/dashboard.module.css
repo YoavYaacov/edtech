@@ -32,3 +32,17 @@
   .tile { grid-template-columns: auto 1fr; }
   .tileLink { grid-column: 1 / -1; justify-content: center; }
 }
+
+/* Phase 2 additions */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); margin-top: var(--space-4); max-width: 640px; }
+.miniTile {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--border); color: var(--text);
+}
+.miniTile:hover { text-decoration: none; filter: brightness(0.98); }
+.miniTile[data-tone='lavender'] { background: var(--lavender-50); border-color: var(--lavender-200); color: var(--lavender-700); }
+.miniTile[data-tone='mint'] { background: var(--mint-50); border-color: var(--mint-200); color: var(--mint-700); }
+.miniValue { font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
+.courses { margin-bottom: var(--space-5); }
+.sectionLabel { font-size: var(--fs-sm); font-weight: 500; color: var(--text-muted); margin-bottom: var(--space-2); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }

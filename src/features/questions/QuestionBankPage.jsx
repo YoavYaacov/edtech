@@ -1,0 +1,126 @@
+import { Link, useSearchParams } from 'react-router-dom';
+import { FileQuestion, Library, Plus, Search } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import Badge from '../../components/ui/Badge';
+import Select from '../../components/ui/Select';
+import Button from '../../components/ui/Button';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
+import { fetchCourses, fetchTopics } from '../content/contentApi';
+import { fetchQuestions, LIST_LIMIT } from './questionsApi';
+import { useAsync } from '../../lib/useAsync';
+import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
+import { difficultyTone, statusTone } from './questionTones';
+import { common, errors, formatDate, questionLabels as L, questions as t } from '../../i18n/he';
+import styles from './questions.module.css';
+
+const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
+const FILTER_KEYS = ['course', 'topic', 'difficulty', 'source', 'status', 'q'];
+
+export default function QuestionBankPage() {
+  const [params, setParams] = useSearchParams();
+  const f = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? '']));
+  const status = params.has('status') ? f.status : 'active';
+
+  const coursesQ = useAsync(() => fetchCourses(), []);
+  const topicsQ = useAsync(
+    () => (f.course ? fetchTopics(f.course) : Promise.resolve({ data: [], error: null })), [f.course]);
+  const topicList = topicsQ.data ?? [];
+  const topicIds = f.topic ? descendantIds(topicList, f.topic) : [];
+
+  const questionsQ = useAsync(
+    () => fetchQuestions({ courseId: f.course, topicIds, difficulty: f.difficulty, sourceType: f.source, status, search: f.q }),
+    [f.course, f.topic, topicIds.join(','), f.difficulty, f.source, status, f.q]);
+
+  function setFilter(key, value) {
+    const next = new URLSearchParams(params);
+    if (value === '' && key !== 'status') next.delete(key); else next.set(key, value);
+    if (key === 'course') next.delete('topic');
+    setParams(next, { replace: true });
+  }
+
+  const courses = coursesQ.data ?? [];
+  const courseName = new Map(courses.map((c) => [c.id, c.title]));
+  const anyFilter = FILTER_KEYS.some((k) => params.has(k));
+  const list = questionsQ.data ?? [];
+
+  if (coursesQ.status === 'ready' && courses.length === 0) {
+    return (
+      <>
+        <PageHeader title={t.title} subtitle={t.subtitle} />
+        <EmptyState icon={Library} tone="sky" title={t.needCourseTitle} body={t.needCourseBody}
+          action={<Link to="/teacher/courses" className={styles.linkButton}>{t.goToCourses}</Link>} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader title={t.title} subtitle={t.subtitle}
+        actions={<Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} className={styles.linkButton}>
+          <Plus size={18} aria-hidden="true" />{t.newQuestion}</Link>} />
+
+      <section className={styles.filters} aria-label={t.title}>
+        <label className={styles.searchBox}>
+          <Search size={18} aria-hidden="true" />
+          <input key={f.q} type="search" placeholder={t.search} aria-label={t.search} defaultValue={f.q}
+            onKeyDown={(e) => e.key === 'Enter' && setFilter('q', e.currentTarget.value)}
+            onBlur={(e) => e.currentTarget.value !== f.q && setFilter('q', e.currentTarget.value)} />
+        </label>
+        <Select label={t.filterCourse} placeholder={common.all} value={f.course}
+          options={courses.map((c) => ({ value: c.id, label: c.is_archived ? `${c.title} (${common.archived})` : c.title }))}
+          onChange={(e) => setFilter('course', e.target.value)} />
+        <Select label={t.filterTopic} placeholder={common.all} value={f.topic} disabled={!f.course}
+          options={flattenTree(buildTree(topicList.filter((x) => !x.is_archived)))
+            .map((x) => ({ value: x.id, label: `${'\u2003'.repeat(x.level - 1)}${x.title}` }))}
+          onChange={(e) => setFilter('topic', e.target.value)} />
+        <Select label={t.filterDifficulty} placeholder={common.all} value={f.difficulty}
+          options={toOptions(L.difficulty)} onChange={(e) => setFilter('difficulty', e.target.value)} />
+        <Select label={t.filterSource} placeholder={common.all} value={f.source}
+          options={toOptions(L.sourceType)} onChange={(e) => setFilter('source', e.target.value)} />
+        <Select label={t.filterStatus} value={status}
+          options={[{ value: 'active', label: t.activeStatuses }, ...toOptions(L.status), { value: '', label: common.all }]}
+          onChange={(e) => setFilter('status', e.target.value)} />
+        {anyFilter && (
+          <Button variant="ghost" onClick={() => setParams({}, { replace: true })}>{t.clearFilters}</Button>
+        )}
+      </section>
+
+      {(questionsQ.status === 'loading' || coursesQ.status === 'loading') && <LoadingState />}
+      {(questionsQ.status === 'error' || coursesQ.status === 'error') && (
+        <ErrorState message={errors.generic} onRetry={() => { coursesQ.reload(); questionsQ.reload(); }} />
+      )}
+      {questionsQ.status === 'ready' && coursesQ.status === 'ready' && (
+        list.length === 0 ? (
+          anyFilter
+            ? <EmptyState icon={Search} tone="butter" title={t.noMatchTitle} body={t.noMatchBody} />
+            : <EmptyState icon={FileQuestion} title={t.emptyTitle} body={t.emptyBody}
+                action={<Link to="/teacher/questions/new" className={styles.linkButton}>{t.newQuestion}</Link>} />
+        ) : (
+          <>
+            <p className={styles.count}>{t.resultCount(list.length)}</p>
+            <ul className={styles.qList}>
+              {list.map((q) => (
+                <li key={q.id}>
+                  <Link to={`/teacher/questions/${q.id}`} className={`${styles.qRow} ${q.status === 'archived' ? styles.dim : ''}`}>
+                    <span className={styles.qTitle}>{q.title}</span>
+                    <span className={styles.qMeta}>
+                      <Badge tone={difficultyTone[q.difficulty]}>{L.difficulty[q.difficulty]}</Badge>
+                      <Badge tone="neutral">
+                        {L.sourceType[q.source_type]}{q.source_year ? ` ${q.source_year}` : ''}
+                      </Badge>
+                      <Badge tone={statusTone[q.status]}>{L.status[q.status]}</Badge>
+                    </span>
+                    <span className={styles.qSub}>
+                      {courseName.get(q.course_id)} · {t.updated} {formatDate(q.updated_at)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {list.length >= LIST_LIMIT && <p className={styles.muted}>{t.limitNote(LIST_LIMIT)}</p>}
+          </>
+        )
+      )}
+    </>
+  );
+}

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './features/auth/AuthProvider';
 import RequireRole from './features/auth/RequireRole';
@@ -9,12 +10,20 @@ import StudentLayout from './layouts/StudentLayout';
 import TeacherHomePage from './features/dashboard/TeacherHomePage';
 import StudentHomePage from './features/dashboard/StudentHomePage';
 import StudentsPage from './features/students/StudentsPage';
+import CoursesPage from './features/content/CoursesPage';
+import CoursePage from './features/content/CoursePage';
+import { LoadingState } from './components/ui/States';
+
+// Heavy teacher-only pages (code editor, markdown) load on demand.
+const QuestionBankPage = lazy(() => import('./features/questions/QuestionBankPage'));
+const QuestionEditorPage = lazy(() => import('./features/questions/QuestionEditorPage'));
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<LoadingState fullPage />}>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<LoginPage />} />
@@ -23,6 +32,11 @@ export default function App() {
           <Route path="/teacher" element={<RequireRole role="teacher"><TeacherLayout /></RequireRole>}>
             <Route index element={<TeacherHomePage />} />
             <Route path="students" element={<StudentsPage />} />
+            <Route path="courses" element={<CoursesPage />} />
+            <Route path="courses/:courseId" element={<CoursePage />} />
+            <Route path="questions" element={<QuestionBankPage />} />
+            <Route path="questions/new" element={<QuestionEditorPage key="new" />} />
+            <Route path="questions/:questionId" element={<QuestionEditorPage />} />
           </Route>
 
           <Route path="/student" element={<RequireRole role="student"><StudentLayout /></RequireRole>}>
@@ -31,6 +45,7 @@ export default function App() {
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

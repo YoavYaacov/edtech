@@ -15,3 +15,5 @@
 .invalid { border-color: var(--rose-700); }
 .hint { font-size: var(--fs-xs); color: var(--text-muted); }
 .error { font-size: var(--fs-xs); color: var(--danger); }
+.textarea { padding-block: var(--space-3); min-height: auto; resize: vertical; line-height: 1.6; }
+.select { cursor: pointer; padding-inline-end: var(--space-6); }
