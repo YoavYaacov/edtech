@@ -15,7 +15,10 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 3 | `20260923000100_content.sql` | 2 | yes (24.09.2026) |
 | 4 | `20260923000200_questions.sql` | 2 | yes (24.09.2026) |
 | 5 | `20260924000100_safe_delete.sql` | 2 (שיפורים) | yes (24.09.2026) |
-| 6 | `20260924000200_assignments.sql` | 3 | pending |
+| 6 | `20260924000200_assignments.sql` | 3 | yes (24.09.2026) |
+| 7 | `20260925000100_feedback.sql` | 4 | pending |
+| 8 | `20260925000200_safe_delete_v2.sql` | 4 | pending |
+| 9 | `20260925000300_feedback_metadata.sql` | 4 | pending |
 
 After running a migration, update this table and the project doc in the same commit.
 
