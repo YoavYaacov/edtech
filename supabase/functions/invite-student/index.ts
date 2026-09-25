@@ -1,5 +1,7 @@
 // Edge Function: invite-student
 // A signed-in TEACHER invites a student by email.
+// Optional course_id: the new student is also enrolled in that course, atomically
+// (if enrollment fails, the invited user is removed — no partial state).
 // Runs on Supabase servers; the service role key never reaches the browser.
 //
 // Required secrets (supabase secrets set ...):
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
   }
 
   // 3. Validate input.
-  let body: { email?: unknown; full_name?: unknown };
+  let body: { email?: unknown; full_name?: unknown; course_id?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -91,6 +93,27 @@ Deno.serve(async (req) => {
   }
   if (fullName.length < 2 || fullName.length > 120) {
     return json({ error: "invalid_name" }, 400, origin);
+  }
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const courseId = body.course_id == null || body.course_id === "" ? null : String(body.course_id);
+  if (courseId !== null && !UUID_RE.test(courseId)) {
+    return json({ error: "course_not_found" }, 404, origin);
+  }
+
+  // 3b. If a course was given: it must be the caller's own, active course.
+  //     Checked BEFORE inviting, so a bad course never creates a user.
+  //     (The service role bypasses RLS, so ownership is checked explicitly.)
+  if (courseId !== null) {
+    const { data: course, error: courseError } = await admin
+      .from("courses")
+      .select("id")
+      .eq("id", courseId)
+      .eq("owner_id", callerId)
+      .eq("is_archived", false)
+      .maybeSingle();
+    if (courseError || !course) {
+      return json({ error: "course_not_found" }, 404, origin);
+    }
   }
 
   // 4. Invite. The DB trigger creates the profile with role = 'student'.
@@ -118,5 +141,18 @@ Deno.serve(async (req) => {
     return json({ error: "link_failed" }, 500, origin);
   }
 
-  return json({ student_id: studentId }, 200, origin);
+  // 6. Optional: enroll in the course. On failure, remove the new user
+  //    (cascade removes the teacher↔student link too) — no partial state.
+  if (courseId !== null) {
+    const { error: enrollError } = await admin
+      .from("course_enrollments")
+      .insert({ course_id: courseId, student_id: studentId });
+    if (enrollError) {
+      console.error("enroll failed", enrollError);
+      await admin.auth.admin.deleteUser(studentId);
+      return json({ error: "enroll_failed" }, 500, origin);
+    }
+  }
+
+  return json({ student_id: studentId, enrolled: courseId !== null }, 200, origin);
 });

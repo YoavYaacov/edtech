@@ -8,7 +8,9 @@ import styles from './students.module.css';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function InviteStudentForm({ onInvited }) {
+// Default: the standalone panel on the Students page (unchanged).
+// embedded + courseId: used inside a course page; the student is also enrolled.
+export default function InviteStudentForm({ onInvited, courseId = null, embedded = false }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,23 +27,21 @@ export default function InviteStudentForm({ onInvited }) {
 
     setBusy(true);
     setError('');
-    const result = await inviteStudent({ email: mail, fullName: name });
+    const result = await inviteStudent({ email: mail, fullName: name, courseId });
     setBusy(false);
 
     if (!result.ok) {
       setError(t.inviteErrors[result.errorCode] ?? errors.generic);
       return;
     }
-    setSuccess(t.invited(name));
+    setSuccess(courseId ? t.invitedToCourse(name) : t.invited(name));
     setFullName('');
     setEmail('');
-    onInvited?.();
+    onInvited?.(name);
   }
 
-  return (
-    <section className={styles.panel} aria-labelledby="invite-title">
-      <h2 id="invite-title" className={styles.panelTitle}>{t.inviteTitle}</h2>
-      <p className={styles.muted}>{t.inviteExplain}</p>
+  const content = (
+    <>
       <form className={styles.inviteForm} onSubmit={handleSubmit} noValidate>
         <TextField label={t.fullName} autoComplete="off" required
           value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -54,6 +54,15 @@ export default function InviteStudentForm({ onInvited }) {
       </form>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {success && <p className={styles.success} role="status">{success}</p>}
+    </>
+  );
+  if (embedded) return content;
+
+  return (
+    <section className={styles.panel} aria-labelledby="invite-title">
+      <h2 id="invite-title" className={styles.panelTitle}>{t.inviteTitle}</h2>
+      <p className={styles.muted}>{t.inviteExplain}</p>
+      {content}
     </section>
   );
 }

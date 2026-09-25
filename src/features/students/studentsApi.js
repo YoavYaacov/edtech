@@ -20,9 +20,11 @@ export function fetchMyTeachers(studentId) {
 }
 
 // Calls the invite-student Edge Function. Returns { ok } or { errorCode }.
-export async function inviteStudent({ email, fullName }) {
+// courseId (optional): the Edge Function also enrolls the new student in that
+// course, atomically (no partial state if enrollment fails).
+export async function inviteStudent({ email, fullName, courseId }) {
   const { data, error } = await supabase.functions.invoke('invite-student', {
-    body: { email, full_name: fullName },
+    body: courseId ? { email, full_name: fullName, course_id: courseId } : { email, full_name: fullName },
   });
   if (!error) return { ok: true, studentId: data?.student_id };
 

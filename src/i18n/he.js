@@ -117,6 +117,7 @@ export const students = {
   invite: 'שליחת הזמנה',
   inviting: 'שולחים הזמנה…',
   invited: (name) => `ההזמנה נשלחה ל${name}.`,
+  invitedToCourse: (name) => `ההזמנה נשלחה ל${name}, ו${name} נרשם/ה לקורס. אפשר כבר לשייך אותו/ה למטלות.`,
   emptyTitle: 'עדיין אין תלמידים',
   emptyBody: 'הזמינו את התלמיד הראשון בטופס שלמעלה.',
   status: { active: 'פעיל', archived: 'בארכיון' },
@@ -126,6 +127,8 @@ export const students = {
     invalid_name: 'יש להזין שם באורך 2 עד 120 תווים.',
     forbidden: 'רק מורה יכול להזמין תלמידים.',
     unauthorized: 'פג תוקף ההתחברות. היכנסו מחדש.',
+    course_not_found: 'הקורס לא נמצא או שהוא בארכיון. ההזמנה לא נשלחה.',
+    enroll_failed: 'הרישום לקורס נכשל, ולכן ההזמנה בוטלה. אפשר לנסות שוב.',
   },
 };
 
@@ -215,6 +218,15 @@ export const enrollment = {
   empty: 'אין עדיין תלמידים בקורס.',
   noCandidates: 'כל התלמידים שלך כבר רשומים לקורס.',
   noStudents: 'עדיין אין לך תלמידים. הזמינו תלמיד בדף "תלמידים".',
+  addStudent: 'הוספת תלמיד לקורס',
+  cancelAdd: 'ביטול',
+  modeExisting: 'תלמיד קיים',
+  modeNew: 'תלמיד חדש',
+  existingExplain: 'בחירה מתוך התלמידים שלך שעדיין לא רשומים לקורס.',
+  noExistingCandidates: 'כל התלמידים שלך כבר רשומים לקורס. אפשר להזמין תלמיד חדש.',
+  newExplain: 'התלמיד יקבל אימייל עם קישור לקביעת סיסמה, ויירשם לקורס הזה מיד.',
+  enrolled: (name) => `${name} נרשם/ה לקורס.`,
+  alreadyEnrolled: 'התלמיד כבר רשום לקורס.',
 };
 
 export const questionLabels = {
