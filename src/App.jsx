@@ -20,6 +20,7 @@ const QuestionEditorPage = lazy(() => import('./features/questions/QuestionEdito
 const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPage'));
 const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
+const ReviewPage = lazy(() => import('./features/review/ReviewPage'));
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="questions/:questionId" element={<QuestionEditorPage />} />
             <Route path="assignments" element={<AssignmentsPage />} />
             <Route path="assignments/:assignmentId" element={<AssignmentPage />} />
+            <Route path="assignments/:assignmentId/review" element={<ReviewPage />} />
           </Route>
 
           <Route path="/student" element={<RequireRole role="student"><StudentLayout /></RequireRole>}>

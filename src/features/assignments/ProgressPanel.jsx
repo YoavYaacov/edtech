@@ -1,18 +1,19 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CheckCircle2, CircleDashed, Eye, Lightbulb, Pencil } from 'lucide-react';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
 import Markdown from '../../components/markdown/Markdown';
 import { fetchProgress } from './assignmentsApi';
 import { useAsync } from '../../lib/useAsync';
-import { assignmentLabels as AL, assignments as t, errors, formatDateTime } from '../../i18n/he';
+import { assignmentLabels as AL, assignments as t, errors, formatDateTime, review as rv } from '../../i18n/he';
 import styles from './assignments.module.css';
 
 const icon = { none: CircleDashed, draft: Pencil, submitted: CheckCircle2 };
 
 // Students × questions. Read-only view of student work (least privilege:
 // RLS returns only answers/reveals of this teacher's assignments).
-export default function ProgressPanel({ questions, students }) {
+export default function ProgressPanel({ questions, students, assignmentId }) {
   const aqIds = questions.map((q) => q.id);
   const q = useAsync(() => fetchProgress(aqIds), [aqIds.join(',')]);
   const [open, setOpen] = useState(null); // { studentId, aqId }
@@ -31,7 +32,10 @@ export default function ProgressPanel({ questions, students }) {
     <section className={styles.panel} aria-labelledby="progress-title">
       <div className={styles.panelHead}>
         <h2 id="progress-title" className={styles.panelTitle}>{t.progress}</h2>
-        <button type="button" className={styles.linkBtn} onClick={q.reload}>{t.refresh}</button>
+        <span className={styles.headLinks}>
+          {assignmentId && <Link to={`/teacher/assignments/${assignmentId}/review`}>{rv.openReview}</Link>}
+          <button type="button" className={styles.linkBtn} onClick={q.reload}>{t.refresh}</button>
+        </span>
       </div>
       {answers.length === 0 && reveals.length === 0 && <p className={styles.muted}>{t.progressEmpty}</p>}
       <div className={styles.tableWrap}>
@@ -77,6 +81,12 @@ export default function ProgressPanel({ questions, students }) {
       {open && (
         <div className={styles.viewer}>
           <h3 className={styles.viewerTitle}>{t.answerOf(openStudent?.full_name, openQ?.title)}</h3>
+          {assignmentId && openAnswer?.status === 'submitted' && (
+            <Link className={styles.reviewLink}
+              to={`/teacher/assignments/${assignmentId}/review?student=${open.studentId}&q=${questions.findIndex((x) => x.id === open.aqId) + 1}`}>
+              {rv.reviewThis}
+            </Link>
+          )}
           {!openAnswer ? <p className={styles.muted}>{t.noAnswer}</p> : (
             <>
               <p className={styles.muted}>

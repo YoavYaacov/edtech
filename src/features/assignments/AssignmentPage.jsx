@@ -120,7 +120,7 @@ export default function AssignmentPage() {
       )}
 
       {!isDraft && qQ.status === 'ready' && rQ.status === 'ready' && (
-        <ProgressPanel questions={qQ.data.map((x) => ({ ...x, title: x.title ?? x.question?.title }))} students={students} />
+        <ProgressPanel questions={qQ.data.map((x) => ({ ...x, title: x.title ?? x.question?.title }))} students={students} assignmentId={a.id} />
       )}
 
       {action && (

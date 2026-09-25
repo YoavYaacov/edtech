@@ -85,3 +85,9 @@
 .pickMeta { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .qTitle { overflow-wrap: anywhere; }
 .table th { white-space: normal; min-width: 140px; max-width: 260px; overflow: visible; line-height: 1.4; vertical-align: bottom; }
+
+/* Phase 4 step 3: entry points to the review screen */
+.headLinks { display: flex; align-items: center; gap: var(--space-4); font-size: var(--fs-sm); }
+.reviewLink { align-self: flex-start; font-weight: 500; padding: 6px var(--space-4); border-radius: var(--radius-md);
+  background: var(--primary); color: #fff; }
+.reviewLink:hover { text-decoration: none; background: var(--primary-hover); }

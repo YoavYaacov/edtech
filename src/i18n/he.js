@@ -524,3 +524,67 @@ export const mistakeTags = {
   inUseBody: (n) => `התגית משויכת ל-${n === 1 ? 'הגשה אחת' : `${n} הגשות`} ולכן היא חלק מהתיעוד. אפשר להעביר אותה לארכיון: היא תישאר בהיסטוריה ולא תוצע בבדיקות חדשות.`,
   close: 'סגירה',
 };
+
+// ---------------------------------------------------------------------
+// Phase 4 step 3 — review screen & feedback draft (decisions 49, 59–68)
+// ---------------------------------------------------------------------
+export const verdictLabels = {
+  correct: 'נכון',
+  partial: 'נכון חלקית',
+  needs_fix: 'לתיקון',
+  incorrect: 'לא נכון',
+};
+
+export const review = {
+  title: 'בדיקת הגשות',
+  openReview: 'מסך בדיקה',
+  reviewThis: 'בדיקת ההגשה',
+  back: 'חזרה למטלה',
+  student: 'תלמיד',
+  nextPending: 'הבא לבדיקה',
+  noPending: 'אין הגשות נוספות שממתינות לבדיקה במטלה הזו.',
+  notFound: 'המטלה לא נמצאה, או שאין לך גישה אליה.',
+  noStudents: 'אין תלמידים משויכים למטלה.',
+  draftAssignment: 'המטלה עדיין בטיוטה – אין הגשות לבדוק.',
+  states: {
+    none: 'לא התחיל', in_progress: 'בעבודה', pending: 'ממתין לבדיקה',
+    pending_draft: 'טיוטת משוב', reviewed: 'נבדק', returned: 'הוחזר לתיקון',
+  },
+  question: 'השאלה כפי שהתלמיד קיבל',
+  reference: 'פתרון הייחוס',
+  referenceEmpty: 'לשאלה אין פתרון שמור.',
+  hintsTitle: 'רמזים בשאלה',
+  attempt: (n) => `ניסיון ${n}`,
+  submittedAt: 'הוגש',
+  answer: 'התשובה שהוגשה',
+  noSubmission: 'התלמיד עוד לא הגיש תשובה לשאלה הזו.',
+  workingOnNext: (n) => `התלמיד עובד כעת על ניסיון ${n}.`,
+  hintsUsed: (n, total, byTeacher) => `רמזים שנחשפו: ${n} מתוך ${total}${byTeacher ? ` (${byTeacher} נפתחו על ידי המורה)` : ''}`,
+  solutionSeen: (when) => `התלמיד צפה בפתרון (${when})`,
+  solutionNotSeen: 'התלמיד לא צפה בפתרון',
+  // form
+  feedbackTitle: 'משוב',
+  verdict: 'פסק דין',
+  message: 'הודעה לתלמיד',
+  messageHint: 'התלמיד יראה את ההודעה ואת פסק הדין אחרי השחרור. אפשר להשתמש ב-Markdown ובנוסחאות.',
+  previewToggle: 'תצוגה כפי שהתלמיד יראה',
+  privateNote: 'הערה פרטית למורה',
+  privateNoteHint: 'לא מוצגת לתלמיד בשום מצב.',
+  tags: 'תגיות טעות',
+  tagsHint: 'כלי פנימי – לא מוצגות לתלמיד.',
+  tagsEmpty: 'אין תגיות טעות בקורס. אפשר ליצור אותן בדף הקורס.',
+  tagsGeneral: 'כללי בקורס',
+  returnIntent: 'להחזיר לתלמיד לניסיון נוסף',
+  returnIntentHint: 'ההחזרה תתבצע בזמן שחרור המשוב.',
+  solutionSeenWarning: 'התלמיד כבר צפה בפתרון לשאלה זו.',
+  ready: 'מוכן לשחרור',
+  missingVerdict: 'חסר פסק דין',
+  missingMessage: 'חסרה הודעה לתלמיד (חובה לכל פסק דין שאינו "נכון")',
+  releaseLater: 'שחרור המשוב לתלמיד יתווסף בשלב הבא. כרגע נשמרת טיוטה בלבד, והתלמיד לא רואה אותה.',
+  saveDraft: 'שמירת טיוטה',
+  released: (when) => `המשוב שוחרר לתלמיד ב-${when} ואינו ניתן לשינוי.`,
+  returnedAt: (when) => `הוחזר לתיקון ב-${when}.`,
+  metadataEditable: 'ההערה הפרטית ותגיות הטעות עדיין ניתנות לעדכון.',
+  conflict: 'המצב השתנה בינתיים. הנתונים נטענו מחדש.',
+  save: { idle: '', dirty: 'שינויים שלא נשמרו', saving: 'שומר…', saved: (t) => `נשמר ${t}`, error: 'לא נשמר. מנסים שוב…' },
+};
