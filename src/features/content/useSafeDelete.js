@@ -34,5 +34,6 @@ export function blockedReason(info) {
   if (info.reason === 'has_questions') return info.students !== undefined
     ? t.courseHasQuestions(info.questions) : t.topicHasQuestions(info.questions);
   if (info.reason === 'has_students') return t.courseHasStudents(info.students);
+  if (info.reason === 'has_mistake_tags') return t.hasMistakeTags(info.mistake_tags);
   return t.inUse;
 }

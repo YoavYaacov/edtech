@@ -9,6 +9,7 @@ import { ErrorState, LoadingState } from '../../components/ui/States';
 import CourseForm from './CourseForm';
 import TopicTree from './TopicTree';
 import EnrollmentPanel from './EnrollmentPanel';
+import MistakeTagsPanel from './MistakeTagsPanel';
 import { deleteCourse, fetchCourse, fetchTopics, updateCourse } from './contentApi';
 import { blockedReason, useSafeDelete } from './useSafeDelete';
 import { useAsync } from '../../lib/useAsync';
@@ -76,6 +77,7 @@ export default function CoursePage() {
         {topicsQ.status === 'loading' && <LoadingState />}
         {topicsQ.status === 'error' && <ErrorState message={errors.generic} onRetry={topicsQ.reload} />}
         {topicsQ.status === 'ready' && <TopicTree courseId={c.id} topics={topicsQ.data} onChanged={topicsQ.reload} />}
+        {topicsQ.status === 'ready' && <MistakeTagsPanel courseId={c.id} topics={topicsQ.data} />}
         <EnrollmentPanel courseId={c.id} />
       </div>
 

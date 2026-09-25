@@ -92,3 +92,29 @@ export function deleteTopic(topicId, { dryRun }) {
 export function deleteCourse(courseId, { dryRun }) {
   return supabase.rpc('delete_course', { p_course_id: courseId, p_dry_run: dryRun });
 }
+
+// ---------- Mistake tags (Phase 4, decisions 55/60/63). Teacher only (RLS). ----------
+// usage = number of attempts the tag is attached to (drives "delete vs archive" in the UI;
+// the database enforces it anyway with ON DELETE RESTRICT).
+export function fetchMistakeTags(courseId) {
+  return supabase
+    .from('mistake_tags')
+    .select('id, name, description, topic_id, is_archived, created_at, usage:submission_mistakes(count)')
+    .eq('course_id', courseId)
+    .order('name', { ascending: true });
+}
+
+export function createMistakeTag(ownerId, courseId, { name, topicId, description }) {
+  return supabase.from('mistake_tags').insert({
+    owner_id: ownerId, course_id: courseId, topic_id: topicId || null, name, description,
+  });
+}
+
+export function updateMistakeTag(tagId, patch) {
+  return supabase.from('mistake_tags').update(patch).eq('id', tagId);
+}
+
+// Returns deleted rows; an FK error (23503) means the tag is in use.
+export function deleteMistakeTag(tagId) {
+  return supabase.from('mistake_tags').delete().eq('id', tagId).select('id');
+}
