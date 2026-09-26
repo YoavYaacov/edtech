@@ -538,7 +538,6 @@ export const verdictLabels = {
 
 export const review = {
   title: 'בדיקת הגשות',
-  openReview: 'מסך בדיקה',
   reviewThis: 'בדיקת ההגשה',
   back: 'חזרה למטלה',
   student: 'תלמיד',

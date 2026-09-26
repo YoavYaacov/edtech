@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, CircleDashed, Eye, Lightbulb, Pencil } from 'lucide-react';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { fetchProgress } from './assignmentsApi';
@@ -9,7 +9,9 @@ import styles from './assignments.module.css';
 const icon = { none: CircleDashed, draft: Pencil, submitted: CheckCircle2 };
 
 // Compact overview + navigation only (UX fix 1, decision 72).
-// Reading answers, reviewing and feedback happen on the review screen.
+// Reading answers, reviewing and feedback happen on the review screen, reached
+// only through "בדיקות" (queue) or a direct cell shortcut here — no generic,
+// param-less review-screen entry point (decision 75; step 0 of Phase 5).
 export default function ProgressPanel({ questions, students, assignmentId }) {
   const navigate = useNavigate();
   const aqIds = questions.map((q) => q.id);
@@ -28,7 +30,6 @@ export default function ProgressPanel({ questions, students, assignmentId }) {
       <div className={styles.panelHead}>
         <h2 id="progress-title" className={styles.panelTitle}>{t.progress}</h2>
         <span className={styles.headLinks}>
-          {assignmentId && <Link to={`/teacher/assignments/${assignmentId}/review`}>{rv.openReview}</Link>}
           <button type="button" className={styles.linkBtn} onClick={q.reload}>{t.refresh}</button>
         </span>
       </div>
