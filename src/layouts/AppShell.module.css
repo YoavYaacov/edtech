@@ -15,6 +15,9 @@
   border-inline-end: 1px solid var(--border);
 }
 .brand { padding-inline: var(--space-2); }
+/* Phase 5 step 2: the bell lives in the sidebar's own branding row, top of
+   the sidebar — no separate desktop top bar is added just for it. */
+.brandRow { display: flex; align-items: center; justify-content: space-between; }
 .nav { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; }
 .navItem {
   display: flex; align-items: center; gap: var(--space-3);
@@ -67,6 +70,7 @@
     border-bottom: 1px solid var(--border);
   }
   .content { padding: var(--space-5) var(--space-4) var(--space-7); }
+  .topbarActions { display: flex; align-items: center; gap: var(--space-1); }
   .tabbar {
     position: sticky; bottom: 0; z-index: 10;
     display: flex; justify-content: space-around;

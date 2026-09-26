@@ -663,3 +663,26 @@ export const studentFeedback = {
   resubmit: (n) => `הגשה חוזרת (ניסיון ${n})`,
   releasedAt: (when) => `ב-${when}`,
 };
+
+// ---------------------------------------------------------------------
+// Phase 5 step 2 — Notification / Action Center (bell + panel)
+// ---------------------------------------------------------------------
+export const notifications = {
+  bell: 'התראות',
+  bellWithCount: (n) => `התראות, ${n} דורשים טיפול`,
+  panelTitle: 'התראות',
+  pendingSection: 'דורש טיפול',
+  newSection: 'חדש',
+  pendingEmpty: 'אין כרגע פריטים שדורשים טיפול.',
+  newEmpty: 'אין אירועים חדשים.',
+  loading: 'טוען התראות…',
+  loadError: 'לא הצלחנו לטעון את ההתראות.',
+  retry: 'ניסיון נוסף',
+  unread: 'לא נקרא',
+  // Reuses the exact phrasing already used in review.states, for consistency.
+  pendingTeacher: (student, question) => `${question} — ממתין לבדיקה${student ? ` (${student})` : ''}`,
+  pendingStudent: (question) => `${question} — הוחזר לתיקון`,
+  eventSubmissionReceived: (student, question) => `${question} — הגשה חדשה${student ? ` (${student})` : ''}`,
+  eventFeedbackAvailable: (question) => `${question} — משוב חדש`,
+  eventReturnedForRevision: (question) => `${question} — הוחזר לתיקון`,
+};
