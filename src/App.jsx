@@ -21,6 +21,7 @@ const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPag
 const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
 const ReviewPage = lazy(() => import('./features/review/ReviewPage'));
+const ReviewQueuePage = lazy(() => import('./features/review/ReviewQueuePage'));
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="assignments" element={<AssignmentsPage />} />
             <Route path="assignments/:assignmentId" element={<AssignmentPage />} />
             <Route path="assignments/:assignmentId/review" element={<ReviewPage />} />
+            <Route path="review" element={<ReviewQueuePage />} />
           </Route>
 
           <Route path="/student" element={<RequireRole role="student"><StudentLayout /></RequireRole>}>

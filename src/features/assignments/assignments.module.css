@@ -91,3 +91,4 @@
 .reviewLink { align-self: flex-start; font-weight: 500; padding: 6px var(--space-4); border-radius: var(--radius-md);
   background: var(--primary); color: #fff; }
 .reviewLink:hover { text-decoration: none; background: var(--primary-hover); }
+.cellStatic { cursor: default; }

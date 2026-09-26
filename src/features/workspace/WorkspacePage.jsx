@@ -10,7 +10,8 @@ import Markdown from '../../components/markdown/Markdown';
 import { useAsync } from '../../lib/useAsync';
 import { useAutosave } from './useAutosave';
 import { fetchHints, fetchSolution, fetchWorkspace, revealHint, revealSolution, saveAnswer, submitAnswer } from './workspaceApi';
-import { errors, formatDateTime, formatTime, questionLabels as L, workspace as t } from '../../i18n/he';
+import { errors, formatDateTime, formatTime, questionLabels as L, studentFeedback as sf, verdictLabels, workspace as t } from '../../i18n/he';
+import { VERDICTS } from '../review/VerdictPicker';
 import styles from './workspace.module.css';
 
 const answerState = (a) => (!a ? 'none' : a.status === 'submitted' ? 'submitted' : 'draft');
@@ -48,6 +49,20 @@ function WorkspaceView({ data }) {
   const [answers, setAnswers] = useState(() => initialAnswers(data.answers));   // aqId → { content, serverContent, status, … }
   const [hints, setHints] = useState(() => groupHints(data.hints));             // aqId → [{ level, content_md }]
   const [solutions, setSolutions] = useState(() => Object.fromEntries(data.solutions.map((x) => [x.assignment_question_id, x])));
+  // per question: number of attempts + released feedback of the latest attempt (step 4 minimum)
+  const [reviews, setReviews] = useState(() => {
+    const byAnswer = new Map(data.answers.map((x) => [x.id, x.assignment_question_id]));
+    const m = {};
+    for (const s of data.submissions ?? []) {
+      const aqId = byAnswer.get(s.answer_id);
+      const cur = m[aqId] ?? { attempts: 0, feedback: null };
+      if (s.attempt_number >= cur.attempts) {
+        const f = Array.isArray(s.feedback) ? s.feedback[0] : s.feedback;
+        m[aqId] = { attempts: s.attempt_number, feedback: f?.released_at ? f : null };
+      }
+    }
+    return m;
+  });
 
   const { assignment, questions } = data;
   const n = questions.length;
@@ -112,10 +127,13 @@ function WorkspaceView({ data }) {
               <Markdown>{aq.body_md}</Markdown>
             </section>
 
-            <AnswerEditor key={aq.id} aq={aq} answer={answers[aq.id]} closed={closed}
+            <AnswerEditor key={aq.id} aq={aq} answer={answers[aq.id]} closed={closed} review={reviews[aq.id]}
               onChange={(content) => patchAnswer(aq.id, { content })}
               onSaved={(content) => patchAnswer(aq.id, { serverContent: content, exists: true })}
-              onSubmitted={(submitted_at) => patchAnswer(aq.id, { status: 'submitted', submitted_at })} />
+              onSubmitted={(submitted_at) => {
+                patchAnswer(aq.id, { status: 'submitted', submitted_at });
+                setReviews((m) => ({ ...m, [aq.id]: { attempts: (m[aq.id]?.attempts ?? 0) + 1, feedback: null } }));
+              }} />
 
           </main>
 
@@ -146,7 +164,7 @@ function WorkspaceView({ data }) {
   );
 }
 
-function AnswerEditor({ aq, answer, closed, onChange, onSaved, onSubmitted }) {
+function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, onSubmitted }) {
   const submitted = answer?.status === 'submitted';
   const readOnly = submitted || closed;
   const isCode = aq.question_type === 'code';
@@ -193,6 +211,11 @@ function AnswerEditor({ aq, answer, closed, onChange, onSaved, onSubmitted }) {
         )}
       </div>
 
+      {review?.feedback && !submitted && (
+        <p className={styles.returnedBanner} role="status">{sf.returnedBanner(review.attempts + 1)}</p>
+      )}
+      {review?.feedback && <FeedbackCard feedback={review.feedback} />}
+
       {isCode ? (
         <CodeEditor value={value} onChange={change} readOnly={readOnly} minHeight="260px"
           language={aq.programming_language || 'java'} label={t.yourAnswer} />
@@ -205,13 +228,32 @@ function AnswerEditor({ aq, answer, closed, onChange, onSaved, onSubmitted }) {
 
       {!readOnly && (
         <div className={styles.submitRow}>
-          <Button icon={Send} onClick={() => setConfirming(true)} disabled={!value.trim() || busy}>{t.submit}</Button>
+          <Button icon={Send} onClick={() => setConfirming(true)} disabled={!value.trim() || busy}>
+            {review?.attempts ? sf.resubmit(review.attempts + 1) : t.submit}
+          </Button>
         </div>
       )}
       <ConfirmDialog open={confirming} title={t.submitTitle} body={t.submitBody}
         confirmLabel={busy ? t.submitting : t.submit} busy={busy}
         onConfirm={submit} onCancel={() => setConfirming(false)} />
     </section>
+  );
+}
+
+// Released feedback only (RLS). Verdict as text + icon, never color alone (decision 59).
+function FeedbackCard({ feedback }) {
+  const Icon = VERDICTS.find((x) => x.value === feedback.verdict)?.icon;
+  return (
+    <div className={styles.feedbackCard} data-verdict={feedback.verdict}>
+      <p className={styles.feedbackHead}>
+        <strong>{sf.title}</strong>
+        <span className={styles.feedbackVerdict}>
+          {Icon && <Icon size={16} aria-hidden="true" />} {sf.verdict}: {verdictLabels[feedback.verdict]}
+        </span>
+        <span className={styles.muted}>{sf.releasedAt(formatDateTime(feedback.released_at))}</span>
+      </p>
+      <Markdown>{feedback.message_md}</Markdown>
+    </div>
   );
 }
 

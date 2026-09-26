@@ -44,6 +44,7 @@ export const nav = {
   courses: 'קורסים',
   questionBank: 'מאגר שאלות',
   assignments: 'מטלות',
+  reviews: 'בדיקות',
   signOut: 'יציאה',
   mainNav: 'ניווט ראשי',
 };
@@ -555,6 +556,9 @@ export const review = {
   referenceEmpty: 'לשאלה אין פתרון שמור.',
   hintsTitle: 'רמזים בשאלה',
   attempt: (n) => `ניסיון ${n}`,
+  questionN: (n) => `שאלה ${n}`,
+  prevQuestion: 'השאלה הקודמת',
+  nextQuestion: 'השאלה הבאה',
   submittedAt: 'הוגש',
   answer: 'התשובה שהוגשה',
   noSubmission: 'התלמיד עוד לא הגיש תשובה לשאלה הזו.',
@@ -587,4 +591,76 @@ export const review = {
   metadataEditable: 'ההערה הפרטית ותגיות הטעות עדיין ניתנות לעדכון.',
   conflict: 'המצב השתנה בינתיים. הנתונים נטענו מחדש.',
   save: { idle: '', dirty: 'שינויים שלא נשמרו', saving: 'שומר…', saved: (t) => `נשמר ${t}`, error: 'לא נשמר. מנסים שוב…' },
+};
+
+// ---------------------------------------------------------------------
+// Phase 4 step 4 + UX fixes — queue, release, return, bulk release
+// ---------------------------------------------------------------------
+export const formatRelativeDay = (iso) => {
+  const d = new Date(iso);
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
+  if (days === 0) return 'היום';
+  if (days === 1) return 'אתמול';
+  return `ב-${new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long' }).format(d)}`;
+};
+
+export const reviewQueue = {
+  title: 'ממתינות לבדיקה',
+  subtitle: 'מטלות שתלמידים הגישו וממתינות לבדיקה שלך. הוותיקות ביותר ראשונות.',
+  submitted: (when) => `הוגש ${when}`,
+  pendingOf: (p, total) => (p === 1 ? `שאלה אחת ממתינה מתוך ${total}` : `${p} שאלות ממתינות מתוך ${total}`),
+  drafts: (n) => (n === 1 ? 'טיוטת משוב אחת' : `${n} טיוטות משוב`),
+  open: 'בדיקת המטלה',
+  closed: 'מטלה סגורה',
+  emptyTitle: 'אין הגשות שממתינות לבדיקה',
+  emptyBody: 'כשתלמיד יגיש תשובה, המטלה תופיע כאן.',
+};
+
+export const release = {
+  release: 'שחרור משוב',
+  releaseAndReturn: 'שחרור והחזרה לניסיון נוסף',
+  confirmTitle: 'לשחרר את המשוב לתלמיד?',
+  confirmBody: 'התלמיד יראה את פסק הדין ואת ההודעה. אחרי השחרור המשוב קבוע ואי אפשר לערוך אותו.',
+  confirmReturn: 'השאלה תיפתח לתלמיד לניסיון נוסף, עם התשובה הקודמת שלו כנקודת התחלה.',
+  released: 'המשוב שוחרר לתלמיד.',
+  releasedAndReturned: 'המשוב שוחרר, והשאלה הוחזרה לתלמיד לניסיון נוסף.',
+  lateReturn: 'החזרה לתיקון',
+  lateReturnTitle: 'להחזיר את השאלה לתלמיד לניסיון נוסף?',
+  lateReturnBody: 'המשוב שכבר שוחרר נשאר כפי שהוא. השאלה תיפתח לתלמיד לניסיון נוסף.',
+  returned: 'השאלה הוחזרה לתלמיד לניסיון נוסף.',
+  notReadyHint: 'אפשר לשחרר רק משוב מוכן.',
+  reasons: {
+    not_ready: 'המשוב עדיין לא מוכן לשחרור.',
+    closed_no_return: 'המטלה סגורה, ולכן אי אפשר להחזיר לתיקון. פתחו את המטלה מחדש, או בטלו את סימון ההחזרה.',
+    already_released: 'המשוב כבר שוחרר.',
+    already_returned: 'השאלה כבר הוחזרה לתיקון.',
+    not_latest: 'זה לא הניסיון האחרון של התלמיד.',
+    not_released: 'אפשר להחזיר רק אחרי שחרור משוב.',
+    no_feedback: 'אין משוב לשחרור.',
+    bad_state: 'מצב ההגשה השתנה.',
+  },
+  bulk: 'שחרור כל המשובים המוכנים',
+  bulkTitle: 'שחרור כל המשובים המוכנים במטלה',
+  bulkReady: (n) => (n === 1 ? 'משוב אחד מוכן לשחרור' : `${n} משובים מוכנים לשחרור`),
+  bulkWithReturn: (n) => (n === 1 ? 'מתוכם אחד כולל החזרה לניסיון נוסף' : `מתוכם ${n} כוללים החזרה לניסיון נוסף`),
+  bulkNotReady: (n) => (n === 1 ? 'טיוטה אחת לא מוכנה – לא תשוחרר' : `${n} טיוטות לא מוכנות – לא ישוחררו`),
+  bulkNoFeedback: (n) => (n === 1 ? 'הגשה אחת עדיין בלי משוב – לא תשתנה' : `${n} הגשות עדיין בלי משוב – לא ישתנו`),
+  bulkBlocked: (n) => (n === 1 ? 'משוב אחד מסומן להחזרה במטלה סגורה – לא ישוחרר' : `${n} משובים מסומנים להחזרה במטלה סגורה – לא ישוחררו`),
+  bulkNothing: 'אין כרגע משובים מוכנים לשחרור במטלה.',
+  bulkAllOrNothing: 'השחרור מתבצע בבת אחת: אם משהו השתנה מאז הבדיקה, שום משוב לא ישוחרר.',
+  bulkConfirm: (n) => `שחרור ${n}`,
+  bulkDone: (n, r) => `שוחררו ${n} משובים${r ? ` (${r} הוחזרו לניסיון נוסף)` : ''}.`,
+  bulkStale: 'המצב השתנה מאז התצוגה המקדימה, ולכן שום משוב לא שוחרר. בדקו שוב ונסו מחדש.',
+  close: 'סגירה',
+};
+
+// Student side — minimal display needed to complete the step-4 flow
+export const studentFeedback = {
+  title: 'משוב מהמורה',
+  verdict: 'פסק דין',
+  reviewed: (v) => `נבדק: ${v}`,
+  returnedBanner: (n) => `הוחזר לתיקון – ניסיון ${n}. קראו את המשוב, תקנו והגישו שוב.`,
+  resubmit: (n) => `הגשה חוזרת (ניסיון ${n})`,
+  releasedAt: (when) => `ב-${when}`,
 };

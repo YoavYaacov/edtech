@@ -79,3 +79,15 @@
 /* revealed solution: full width below the work area (Phase 3 fix 4) */
 .solutionWide { gap: var(--space-4); }
 .solutionWide .hintLabel { font-size: var(--fs-sm); }
+
+/* Phase 4 step 4 — minimal released-feedback display */
+.returnedBanner { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--sky-50);
+  color: var(--sky-700); border: 1px solid var(--sky-200); font-weight: 500; }
+.feedbackCard { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); background: var(--bg); border: 1.5px solid var(--border); border-inline-start-width: 5px; }
+.feedbackCard[data-verdict='correct'] { border-inline-start-color: var(--mint-700); }
+.feedbackCard[data-verdict='partial'] { border-inline-start-color: var(--sky-700); }
+.feedbackCard[data-verdict='needs_fix'] { border-inline-start-color: var(--butter-700); }
+.feedbackCard[data-verdict='incorrect'] { border-inline-start-color: var(--rose-700); }
+.feedbackHead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.feedbackVerdict { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }

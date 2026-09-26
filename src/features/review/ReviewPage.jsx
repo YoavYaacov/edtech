@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Eye, Lightbulb, SkipForward } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Clock, Eye, FilePen, Lightbulb, Pencil, RotateCcw, Send, SkipForward } from 'lucide-react';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Select from '../../components/ui/Select';
@@ -8,9 +9,11 @@ import { ErrorState, LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
 import Markdown from '../../components/markdown/Markdown';
 import FeedbackForm from './FeedbackForm';
-import { fetchReference, fetchReviewData } from './reviewApi';
+import { fetchReference, fetchReviewData, previewReadyFeedback, releaseReadyFeedback } from './reviewApi';
 import { useAsync } from '../../lib/useAsync';
-import { errors, formatDateTime, nav, questionLabels as L, review as t } from '../../i18n/he';
+import { errors, formatDateTime, nav, questionLabels as L, release as rl, review as t } from '../../i18n/he';
+
+const STATE_ICON = { none: CircleDashed, in_progress: Pencil, pending: Clock, pending_draft: FilePen, reviewed: CheckCircle2, returned: RotateCcw };
 import styles from './review.module.css';
 
 const STATE_TONE = { none: 'neutral', in_progress: 'butter', pending: 'peach', pending_draft: 'lavender', reviewed: 'mint', returned: 'sky' };
@@ -27,11 +30,13 @@ export function cellState(answer, subs, localDraft) {
 export default function ReviewPage() {
   const { assignmentId } = useParams();
   const q = useAsync(() => fetchReviewData(assignmentId), [assignmentId]);
+  // lives outside the view, so a reload after release does not erase it
+  const [flash, setFlash] = useState('');
   if (q.status === 'loading') return <LoadingState />;
   if (q.status === 'error') return <ErrorState message={errors.generic} onRetry={q.reload} />;
   if (!q.data) return <ErrorState message={t.notFound}><Link to="/teacher/assignments">{nav.assignments}</Link></ErrorState>;
   // key: a reload remounts the view with fresh server data
-  return <ReviewView key={q.data.submissions.length + ':' + assignmentId} data={q.data} reload={q.reload} />;
+  return <ReviewView key={q.data.submissions.length + ':' + assignmentId} data={q.data} reload={q.reload} flash={flash} setFlash={setFlash} />;
 }
 
 function initialForms(data) {
@@ -51,7 +56,7 @@ function initialForms(data) {
   return forms;
 }
 
-function ReviewView({ data, reload }) {
+function ReviewView({ data, reload, flash, setFlash }) {
   const { assignment, questions, students } = data;
   const [params, setParams] = useSearchParams();
   // Form state per submission lives here, built at creation time (decision 36 lesson):
@@ -59,6 +64,9 @@ function ReviewView({ data, reload }) {
   const [forms, setForms] = useState(() => initialForms(data));
   const [conflict, setConflict] = useState('');
   const [nextMsg, setNextMsg] = useState('');
+  const flushRef = useRef(null); // flush() of the open feedback form
+  const [bulk, setBulk] = useState(null); // { preview } | { error }
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const answerOf = (sid, aqId) => data.answers.find((a) => a.student_id === sid && a.assignment_question_id === aqId);
   const subsOf = (answer) => (answer ? data.submissions.filter((s) => s.answer_id === answer.id) : []);
@@ -73,8 +81,31 @@ function ReviewView({ data, reload }) {
   const isPending = (p) => ['pending', 'pending_draft'].includes(stateOf(p.sid, questions[p.qi].id));
   const firstPending = pairs.find(isPending);
   const studentId = params.get('student') ?? firstPending?.sid ?? students[0]?.id;
-  const qi = Math.min(Math.max(Number(params.get('q') ?? (firstPending && firstPending.sid === studentId ? firstPending.qi + 1 : 1)) - 1, 0), Math.max(questions.length - 1, 0));
-  const go = (sid, index) => { setNextMsg(''); setParams({ student: sid, q: String(index + 1) }); };
+  // opened for a student (e.g. from the queue) without a question → that student's first pending question
+  const firstPendingOfStudent = pairs.find((p) => p.sid === studentId && isPending(p));
+  const qi = Math.min(Math.max(Number(params.get('q') ?? ((firstPendingOfStudent?.qi ?? 0) + 1)) - 1, 0), Math.max(questions.length - 1, 0));
+  const go = (sid, index) => { setNextMsg(''); setFlash(''); setParams({ student: sid, q: String(index + 1) }); };
+
+  // Bulk release (decision 67): save the open draft → preview → confirm → release EXACTLY the previewed list.
+  async function openBulk() {
+    setBulkBusy(true);
+    setFlash('');
+    if (flushRef.current) await flushRef.current();
+    const { data: p, error } = await previewReadyFeedback(assignment.id);
+    setBulkBusy(false);
+    setBulk(error ? { error: errors.generic } : { preview: p });
+  }
+  async function confirmBulk() {
+    const ids = bulk.preview.ready_ids;
+    setBulkBusy(true);
+    const { data: r, error } = await releaseReadyFeedback(assignment.id, ids);
+    setBulkBusy(false);
+    if (error) return setBulk({ error: errors.generic });
+    if (!r.ok) return setBulk({ error: r.reason === 'stale' ? rl.bulkStale : errors.generic });
+    setBulk(null);
+    setFlash(rl.bulkDone(r.released, r.returned));
+    reload();
+  }
 
   function goNextPending() {
     const cur = pairs.findIndex((p) => p.sid === studentId && p.qi === qi);
@@ -99,8 +130,12 @@ function ReviewView({ data, reload }) {
           <h1 className={styles.title}>{t.title}</h1>
           <p className={styles.muted}>{assignment.title} · {assignment.course?.title}</p>
         </div>
-        <Button variant="secondary" icon={SkipForward} onClick={goNextPending}>{t.nextPending}</Button>
+        <div className={styles.headerActions}>
+          <Button variant="secondary" icon={Send} loading={bulkBusy && !bulk} onClick={openBulk}>{rl.bulk}</Button>
+          <Button variant="secondary" icon={SkipForward} onClick={goNextPending}>{t.nextPending}</Button>
+        </div>
       </header>
+      {flash && <p className={styles.success} role="status">{flash}</p>}
       {nextMsg && <p className={styles.info} role="status">{nextMsg}</p>}
       {conflict && <p className={styles.warning} role="alert">{conflict}</p>}
 
@@ -114,9 +149,10 @@ function ReviewView({ data, reload }) {
             const st = stateOf(student.id, x.id);
             return (
               <button key={x.id} type="button" onClick={() => go(student.id, i)} title={`${x.title} – ${t.states[st]}`}
-                className={`${styles.qChip} ${i === qi ? styles.qChipOn : ''}`} data-state={st} aria-current={i === qi ? 'step' : undefined}>
-                <span className={styles.qNum}>{i + 1}</span>
-                <span className={styles.qState}>{t.states[st]}</span>
+                className={`${styles.qChip} ${i === qi ? styles.qChipOn : ''}`} data-state={st} aria-current={i === qi ? 'step' : undefined}
+                aria-label={`${t.questionN(i + 1)}: ${t.states[st]}`}>
+                {(() => { const Icon = STATE_ICON[st]; return <Icon size={14} aria-hidden="true" />; })()}
+                <span>{t.questionN(i + 1)}</span>
               </button>
             );
           })}
@@ -129,20 +165,47 @@ function ReviewView({ data, reload }) {
           <SubmissionPanel key={`${student.id}:${aq.id}`} aq={aq} answer={answer} subs={subs}
             reveals={data.reveals.filter((r) => r.student_id === student.id && r.assignment_question_id === aq.id)}
             studentId={student.id} forms={forms} setForms={setForms} data={data}
+            registerFlush={(f) => { flushRef.current = f; }}
+            onDone={(msg) => { setFlash(msg); reload(); }}
             onConflict={(reason) => { setConflict(`${t.conflict}${reason ? ` (${reason})` : ''}`); reload(); }} />
           <div className={styles.navRow}>
             {qi > 0 ? (
-              <Button variant="secondary" icon={ChevronRight} onClick={() => go(student.id, qi - 1)}>{questions[qi - 1].title}</Button>
+              <Button variant="secondary" icon={ChevronRight} onClick={() => go(student.id, qi - 1)}>{t.prevQuestion}</Button>
             ) : <span />}
             {qi < questions.length - 1 && (
               <Button variant="secondary" onClick={() => go(student.id, qi + 1)}>
-                {questions[qi + 1].title}<ChevronLeft size={18} aria-hidden="true" />
+                {t.nextQuestion}<ChevronLeft size={18} aria-hidden="true" />
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      {bulk?.preview && (
+        <ConfirmDialog open title={rl.bulkTitle}
+          body={<BulkSummary p={bulk.preview} />}
+          confirmLabel={bulk.preview.ready_ids.length ? rl.bulkConfirm(bulk.preview.ready_ids.length) : null}
+          cancelLabel={rl.close} busy={bulkBusy} onConfirm={confirmBulk} onCancel={() => setBulk(null)} />
+      )}
+      {bulk?.error && (
+        <ConfirmDialog open title={rl.bulkTitle} body={bulk.error} confirmLabel={null} cancelLabel={rl.close}
+          onCancel={() => { setBulk(null); reload(); }} />
+      )}
     </div>
+  );
+}
+
+function BulkSummary({ p }) {
+  const n = p.ready_ids.length;
+  return (
+    <span className={styles.bulkList}>
+      {n === 0 ? <span>{rl.bulkNothing}</span> : <strong>{rl.bulkReady(n)}</strong>}
+      {p.ready_with_return > 0 && <span>{rl.bulkWithReturn(p.ready_with_return)}</span>}
+      {p.not_ready > 0 && <span>{rl.bulkNotReady(p.not_ready)}</span>}
+      {p.no_feedback > 0 && <span>{rl.bulkNoFeedback(p.no_feedback)}</span>}
+      {p.blocked_closed > 0 && <span>{rl.bulkBlocked(p.blocked_closed)}</span>}
+      {n > 0 && <span className={styles.bulkNote}>{rl.bulkAllOrNothing}</span>}
+    </span>
   );
 }
 
@@ -179,7 +242,7 @@ function QuestionPanel({ aq }) {
   );
 }
 
-function SubmissionPanel({ aq, answer, subs, reveals, studentId, forms, setForms, data, onConflict }) {
+function SubmissionPanel({ aq, answer, subs, reveals, studentId, forms, setForms, data, onConflict, registerFlush, onDone }) {
   const [selected, setSelected] = useState(subs.length ? subs[subs.length - 1].id : null);
   const sub = subs.find((s) => s.id === selected);
   const hintReveals = reveals.filter((r) => r.kind === 'hint');
@@ -220,6 +283,8 @@ function SubmissionPanel({ aq, answer, subs, reveals, studentId, forms, setForms
       {sub && forms[sub.id] && (
         <FeedbackForm key={sub.id} submission={sub} initial={forms[sub.id].values} server={forms[sub.id].server}
           tags={data.tags} topics={data.topics} solutionSeen={Boolean(solution)}
+          isLatest={sub.id === subs[subs.length - 1].id} answerStatus={answer?.status} assignmentStatus={data.assignment.status}
+          registerFlush={registerFlush} onDone={onDone}
           onChange={(values) => setForms((m) => ({ ...m, [sub.id]: { ...m[sub.id], values } }))}
           onSaved={(raw) => setForms((m) => ({ ...m, [sub.id]: { ...m[sub.id], server: raw, saved: true } }))}
           onConflict={onConflict} />

@@ -74,3 +74,52 @@ export const saveFeedbackDraft = (sid, v) => supabase.rpc('save_feedback', {
 export const saveFeedbackMetadata = (sid, v) => supabase.rpc('save_feedback_metadata', {
   p_submission_id: sid, p_private_note: v.note, p_mistake_tag_ids: v.tags,
 });
+
+// ---------- Step 4: release / return / bulk (existing RPCs only; no direct CRUD) ----------
+export const releaseFeedback = (sid) => supabase.rpc('release_feedback', { p_submission_id: sid });
+export const returnForRevision = (sid) => supabase.rpc('return_for_revision', { p_submission_id: sid });
+export const previewReadyFeedback = (assignmentId) => supabase.rpc('preview_ready_feedback', { p_assignment_id: assignmentId });
+export const releaseReadyFeedback = (assignmentId, submissionIds) =>
+  supabase.rpc('release_ready_feedback', { p_assignment_id: assignmentId, p_submission_ids: submissionIds });
+
+// ---------- Review queue: one row per (student × assignment) ----------
+// Built on the existing teacher_review_queue view (one row per pending question).
+export async function fetchReviewQueue() {
+  const q = await supabase.from('teacher_review_queue')
+    .select('assignment_id, student_id, assignment_question_id, submitted_at, has_draft');
+  if (q.error) return { data: null, error: q.error };
+  const rows = q.data ?? [];
+  if (!rows.length) return { data: [], error: null };
+  const aIds = [...new Set(rows.map((r) => r.assignment_id))];
+  const sIds = [...new Set(rows.map((r) => r.student_id))];
+  const [a, p] = await Promise.all([
+    supabase.from('assignments').select('id, title, status, course:courses(title), assignment_questions(id, position)').in('id', aIds),
+    supabase.from('profiles').select('id, full_name').in('id', sIds),
+  ]);
+  if (a.error || p.error) return { data: null, error: a.error || p.error };
+  const aMap = new Map(a.data.map((x) => [x.id, x]));
+  const pMap = new Map(p.data.map((x) => [x.id, x.full_name]));
+  const groups = new Map();
+  for (const r of rows) {
+    const key = `${r.assignment_id}:${r.student_id}`;
+    const g = groups.get(key) ?? { assignmentId: r.assignment_id, studentId: r.student_id, pending: 0, drafts: 0,
+      oldest: r.submitted_at, pendingAqIds: [] };
+    g.pending += 1;
+    if (r.has_draft) g.drafts += 1;
+    if (r.submitted_at < g.oldest) g.oldest = r.submitted_at;
+    g.pendingAqIds.push(r.assignment_question_id);
+    groups.set(key, g);
+  }
+  const data = [...groups.values()].map((g) => {
+    const asg = aMap.get(g.assignmentId);
+    const ordered = [...(asg?.assignment_questions ?? [])].sort((x, y) => x.position - y.position);
+    return {
+      ...g,
+      studentName: pMap.get(g.studentId) ?? '',
+      title: asg?.title ?? '', courseTitle: asg?.course?.title ?? '', status: asg?.status,
+      total: ordered.length,
+      firstPendingIndex: Math.max(ordered.findIndex((x) => g.pendingAqIds.includes(x.id)), 0),
+    };
+  }).sort((x, y) => (x.oldest < y.oldest ? -1 : 1)); // oldest waiting first
+  return { data, error: null };
+}

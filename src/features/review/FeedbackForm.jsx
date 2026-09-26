@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { AlertTriangle, CheckCircle2, EyeOff, Lock, Save, Tags } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, EyeOff, Lock, RotateCcw, Save, Send, Tags } from 'lucide-react';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Button from '../../components/ui/Button';
 import TextArea from '../../components/ui/TextArea';
 import MarkdownField from '../../components/markdown/MarkdownField';
@@ -7,8 +8,8 @@ import Markdown from '../../components/markdown/Markdown';
 import VerdictPicker from './VerdictPicker';
 import { useAutosave } from '../workspace/useAutosave';
 import { buildTree, flattenTree } from '../../lib/topicTree';
-import { saveFeedbackDraft, saveFeedbackMetadata } from './reviewApi';
-import { common, formatDateTime, formatTime, review as t, verdictLabels } from '../../i18n/he';
+import { releaseFeedback, returnForRevision, saveFeedbackDraft, saveFeedbackMetadata } from './reviewApi';
+import { common, errors, formatDateTime, formatTime, release as rl, review as t, verdictLabels } from '../../i18n/he';
 import styles from './review.module.css';
 
 // Mirrors decision 62 (the database enforces it again on release).
@@ -21,11 +22,15 @@ const serialize = (mode, v) => JSON.stringify(mode === 'draft'
 // mode 'draft'    → feedback not released: full draft via save_feedback
 // mode 'metadata' → feedback released: verdict/message read-only (decision 61);
 //                   private note + tags via save_feedback_metadata (decision 68)
-export default function FeedbackForm({ submission, initial, server, tags, topics, solutionSeen, onChange, onSaved, onConflict }) {
+export default function FeedbackForm({ submission, initial, server, tags, topics, solutionSeen, onChange, onSaved, onConflict,
+  isLatest, answerStatus, assignmentStatus, registerFlush, onDone }) {
   const fb = submission.feedback;
   const mode = fb?.released_at ? 'metadata' : 'draft';
   const [v, setV] = useState(initial);
   const [preview, setPreview] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 'release' | 'return'
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const value = serialize(mode, v);
   const { status, savedAt, flush } = useAutosave({
@@ -42,6 +47,33 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
     },
     onSaved: (raw) => onSaved(raw),
   });
+
+  // the page can save this draft before a bulk preview
+  useEffect(() => {
+    registerFlush?.(flush);
+    return () => registerFlush?.(null);
+  }, [flush, registerFlush]);
+
+  // Step 4 — existing RPCs only (release_feedback / return_for_revision).
+  const canRelease = mode === 'draft' && isLatest && answerStatus === 'submitted';
+  const canLateReturn = mode === 'metadata' && isLatest && answerStatus === 'submitted' && !fb.return_for_revision;
+
+  async function askRelease() {
+    setActionError('');
+    const saved = await flush(); // the release must see exactly what is on screen
+    if (!saved) return setActionError(errors.generic);
+    setConfirm('release');
+  }
+  async function doAction() {
+    setBusy(true);
+    const kind = confirm;
+    const { data, error } = kind === 'release' ? await releaseFeedback(submission.id) : await returnForRevision(submission.id);
+    setBusy(false);
+    setConfirm(null);
+    if (error) return setActionError(errors.generic);
+    if (!data?.ok) return setActionError(rl.reasons[data?.reason] ?? errors.generic);
+    onDone(kind === 'release' ? (data.returned ? rl.releasedAndReturned : rl.released) : rl.returned);
+  }
 
   function set(patch) {
     const next = { ...v, ...patch };
@@ -132,13 +164,37 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
             {ready ? <><CheckCircle2 size={16} aria-hidden="true" /> {t.ready}</>
               : !v.verdict ? t.missingVerdict : t.missingMessage}
           </p>
-          <p className={styles.note}>{t.releaseLater}</p>
         </>
       )}
 
+      {actionError && <p className={styles.warning} role="alert">{actionError}</p>}
       <div className={styles.formActions}>
-        <Button variant="secondary" icon={Save} onClick={() => flush()} disabled={status === 'saving'}>{mode === 'draft' ? t.saveDraft : common.save}</Button>
+        <Button variant="secondary" icon={Save} onClick={() => flush()} disabled={status === 'saving' || busy}>{mode === 'draft' ? t.saveDraft : common.save}</Button>
+        {canRelease && (
+          <Button icon={Send} onClick={askRelease} disabled={!ready || busy} title={ready ? undefined : rl.notReadyHint}>
+            {v.ret ? rl.releaseAndReturn : rl.release}
+          </Button>
+        )}
+        {canLateReturn && (
+          <Button variant="secondary" icon={RotateCcw} onClick={() => { setActionError(''); setConfirm('return'); }} disabled={busy}>
+            {rl.lateReturn}
+          </Button>
+        )}
       </div>
+
+      {confirm && (
+        <ConfirmDialog open busy={busy} onConfirm={doAction} onCancel={() => setConfirm(null)}
+          title={confirm === 'release' ? rl.confirmTitle : rl.lateReturnTitle}
+          confirmLabel={confirm === 'release' ? (v.ret ? rl.releaseAndReturn : rl.release) : rl.lateReturn}
+          body={(
+            <span className={styles.bulkList}>
+              <span>{confirm === 'release' ? rl.confirmBody : rl.lateReturnBody}</span>
+              {confirm === 'release' && v.ret && <span>{rl.confirmReturn}</span>}
+              {(confirm === 'return' || v.ret) && solutionSeen && <strong>{t.solutionSeenWarning}</strong>}
+              {(confirm === 'return' || v.ret) && assignmentStatus !== 'published' && <strong>{rl.reasons.closed_no_return}</strong>}
+            </span>
+          )} />
+      )}
     </section>
   );
 }

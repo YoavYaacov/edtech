@@ -85,3 +85,22 @@
   .formCard { position: static; }
 }
 @media (max-width: 480px) { .verdicts { grid-template-columns: 1fr; } }
+
+/* Phase 4 step 4 */
+.headerActions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.success { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--success-tint);
+  color: var(--success); border: 1px solid var(--mint-200); font-weight: 500; }
+.bulkList { display: flex; flex-direction: column; gap: 6px; }
+.bulkNote { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 4px; }
+.formActions { gap: var(--space-2); flex-wrap: wrap; }
+/* review queue (UX fix 2) */
+.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.queueRow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4);
+  border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
+.queueText { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 220px; }
+.queueStudent { font-weight: 700; }
+.queueTitle { font-weight: 500; overflow-wrap: anywhere; }
+.queueMeta { display: flex; gap: var(--space-1); }
+.queueBtn { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding-inline: var(--space-4);
+  border-radius: var(--radius-md); background: var(--primary); color: #fff; font-weight: 500; }
+.queueBtn:hover { text-decoration: none; background: var(--primary-hover); }

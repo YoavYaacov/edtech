@@ -35,13 +35,21 @@ export async function fetchWorkspace(assignmentId) {
   if (q.error) return { data: null, error: q.error };
   const ids = q.data.map((x) => x.id);
   const [ans, hints, sols] = await Promise.all([
-    supabase.from('answers').select('assignment_question_id, content, status, draft_saved_at, submitted_at').in('assignment_question_id', ids),
+    supabase.from('answers').select('id, assignment_question_id, content, status, draft_saved_at, submitted_at').in('assignment_question_id', ids),
     supabase.from('assignment_question_hints').select('assignment_question_id, level, content_md').in('assignment_question_id', ids),
     supabase.from('assignment_question_solutions').select('assignment_question_id, solution_code, explanation_md').in('assignment_question_id', ids),
   ]);
   const error = ans.error || hints.error || sols.error;
   if (error) return { data: null, error };
-  return { data: { assignment: a.data, questions: q.data, answers: ans.data, hints: hints.data, solutions: sols.data }, error: null };
+  // own attempts + feedback; RLS returns only RELEASED feedback, never notes or tags
+  const answerIds = ans.data.map((x) => x.id);
+  const subs = answerIds.length
+    ? await supabase.from('answer_submissions')
+      .select('answer_id, attempt_number, feedback(verdict, message_md, released_at, return_for_revision)')
+      .in('answer_id', answerIds)
+    : { data: [] };
+  if (subs.error) return { data: null, error: subs.error };
+  return { data: { assignment: a.data, questions: q.data, answers: ans.data, hints: hints.data, solutions: sols.data, submissions: subs.data }, error: null };
 }
 
 export const saveAnswer = (aqId, content) =>

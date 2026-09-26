@@ -82,11 +82,16 @@ export async function fetchProgress(aqIds) {
   if (aqIds.length === 0) return { data: { answers: [], reveals: [] }, error: null };
   const [a, r] = await Promise.all([
     supabase.from('answers')
-      .select('id, assignment_question_id, student_id, content, status, draft_saved_at, submitted_at')
+      .select('id, assignment_question_id, student_id, status, draft_saved_at, submitted_at')
       .in('assignment_question_id', aqIds),
     supabase.from('question_reveals')
       .select('assignment_question_id, student_id, kind, level, revealed_at')
       .in('assignment_question_id', aqIds),
   ]);
-  return { data: { answers: a.data ?? [], reveals: r.data ?? [] }, error: a.error || r.error };
+  if (a.error || r.error) return { data: null, error: a.error || r.error };
+  // which answers already have at least one submission (→ the cell links to the review screen)
+  const ids = (a.data ?? []).map((x) => x.id);
+  const s = ids.length ? await supabase.from('answer_submissions').select('answer_id').in('answer_id', ids) : { data: [] };
+  if (s.error) return { data: null, error: s.error };
+  return { data: { answers: a.data ?? [], reveals: r.data ?? [], submittedAnswerIds: [...new Set(s.data.map((x) => x.answer_id))] }, error: null };
 }
