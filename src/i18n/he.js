@@ -679,8 +679,12 @@ export const notifications = {
   loadError: 'לא הצלחנו לטעון את ההתראות.',
   retry: 'ניסיון נוסף',
   unread: 'לא נקרא',
-  // Reuses the exact phrasing already used in review.states, for consistency.
-  pendingTeacher: (student, question) => `${question} — ממתין לבדיקה${student ? ` (${student})` : ''}`,
+  close: 'סגירה',
+  // Teacher's "דורש טיפול" is grouped Student × Assignment (decision 85,
+  // matching the "בדיקות" hub's own grouping) — one line per group, e.g.
+  // "בננה — אבישג וקיל" + "5 שאלות ממתינות לבדיקה" underneath.
+  pendingTeacherTitle: (assignmentTitle, studentName) => `${assignmentTitle} — ${studentName}`,
+  pendingCount: (n) => (n === 1 ? 'שאלה אחת ממתינה לבדיקה' : `${n} שאלות ממתינות לבדיקה`),
   pendingStudent: (question) => `${question} — הוחזר לתיקון`,
   eventSubmissionReceived: (student, question) => `${question} — הגשה חדשה${student ? ` (${student})` : ''}`,
   eventFeedbackAvailable: (question) => `${question} — משוב חדש`,

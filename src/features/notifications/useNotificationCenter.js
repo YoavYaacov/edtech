@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAsync } from '../../lib/useAsync';
-import { fetchNotificationCenter, markNotificationRead } from './notificationsApi';
+import { fetchNotificationCenter, markNotificationsRead } from './notificationsApi';
 
 // Refresh policy approved for Phase 5 step 2: no Realtime, no fixed-interval
 // polling. Re-fetches on mount (useAsync's own effect), on tab/window focus,
@@ -37,8 +37,10 @@ export function useNotificationCenter(role) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function markRead(id) {
-    await markNotificationRead(id);
+  // Accepts one id or an array — a merged "דורש טיפול" item can absorb
+  // several stored events at once (bug B3) and all must clear together.
+  async function markRead(ids) {
+    await markNotificationsRead(Array.isArray(ids) ? ids : [ids]);
     q.reload();
   }
 

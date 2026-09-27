@@ -26,21 +26,56 @@
   border: 2px solid var(--surface);
 }
 
+/* position: fixed (not absolute-relative-to-.wrap) on purpose (decision 87,
+   fixing bug B5): anchoring to the small bell wrapper and growing the panel
+   by a viewport-derived width is what caused the reported mobile overflow —
+   depending on exactly where that small element sits, growth toward the
+   opposite edge can overshoot it. Fixed positioning with both inline insets
+   set (end + a capped width, so the start edge is implied) cannot overshoot
+   the viewport regardless of the bell's exact position, on any screen size. */
 .panel {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  inset-inline-start: 0;
-  width: min(360px, calc(100vw - 2 * var(--space-4)));
-  max-height: min(480px, calc(100vh - 96px));
-  overflow-y: auto;
+  position: fixed;
+  top: 64px;
+  inset-inline-end: var(--space-4);
+  inset-inline-start: auto;
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  max-height: min(560px, calc(100vh - 96px));
   z-index: 30;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-soft);
-  padding: var(--space-3);
-  display: flex; flex-direction: column; gap: var(--space-4);
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
+
+.panelHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panelHeaderTitle { margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.closeBtn {
+  display: grid; place-items: center;
+  width: 32px; height: 32px;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.closeBtn:hover { background: var(--surface-sunken); color: var(--text); }
+
+.panelBody {
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-4);
+  /* thin scrollbar (decision 88, desktop polish) — falls back gracefully
+     where unsupported, never required for correctness */
+  scrollbar-width: thin;
+}
+.panelBody::-webkit-scrollbar { width: 8px; }
+.panelBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.panelBody::-webkit-scrollbar-track { background: transparent; }
 
 .sectionTitle {
   font-size: var(--fs-sm);
@@ -53,13 +88,15 @@
 
 .item {
   position: relative;
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: flex-start; gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--text);
 }
 .item:hover { background: var(--surface-sunken); text-decoration: none; }
 
+.itemIcon { flex-shrink: 0; margin-top: 2px; color: var(--text-muted); }
+.itemText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .itemTitle { font-weight: 500; }
 .itemMeta { font-size: var(--fs-xs); color: var(--text-muted); }
 
@@ -76,3 +113,19 @@
 .empty, .muted { color: var(--text-muted); font-size: var(--fs-sm); padding: var(--space-2) var(--space-3); margin: 0; }
 .error { color: var(--danger); font-size: var(--fs-sm); padding: var(--space-2) var(--space-3); margin: 0; }
 .linkBtn { background: none; border: none; color: var(--primary); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+
+/* Mobile (decision 87, bug B5): a near-fullscreen surface instead of a
+   popover — full width, available viewport height, its own scroll region —
+   rather than trying to fit a 420px popover on a narrow screen. Same
+   breakpoint AppShell already switches sidebar/topbar at, so the two never
+   disagree about what counts as "mobile". */
+@media (max-width: 800px) {
+  .panel {
+    top: 0; bottom: 0;
+    inset-inline-start: 0; inset-inline-end: 0;
+    width: auto;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+  }
+}

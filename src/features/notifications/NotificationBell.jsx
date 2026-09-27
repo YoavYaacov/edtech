@@ -17,12 +17,26 @@ export default function NotificationBell({ role, pending, events, loading, error
 
   const count = pending.length; // badge = "דורש טיפול" only (decision 76/78); never the unread event count
 
+  // Bug-fix round (decision 87): opening the panel always forces a fresh
+  // fetch, on top of the existing mount/focus/navigation refresh policy.
+  // This closes a real staleness gap — a cross-user event (e.g. a teacher's
+  // feedback release) has no way to reach an already-open student tab
+  // without one of those three triggers firing on the student's own side.
+  // It's still not polling/Realtime (decision 83): it fires only on this
+  // explicit user action, exactly the kind of "own action that should
+  // refresh the UI" case decision 83 already allows for.
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) onRetry();
+  }
+
   return (
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
         className={styles.bellButton}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={count > 0 ? t.bellWithCount(count) : t.bell}
@@ -39,6 +53,7 @@ export default function NotificationBell({ role, pending, events, loading, error
           error={error}
           onRetry={onRetry}
           onNavigate={() => setOpen(false)}
+          onClose={() => setOpen(false)}
           onMarkRead={onMarkRead}
         />
       )}
