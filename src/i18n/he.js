@@ -499,6 +499,7 @@ export const workspace = {
   next: 'השאלה הבאה',
   notFound: 'המטלה לא נמצאה.',
   leaveWarning: 'יש שינויים שעוד לא נשמרו.',
+  stepReviewed: 'התקבל משוב', // a11y-only suffix for the stepper's reviewed state (Step 5, decision 6)
 };
 
 // ---------------------------------------------------------------------
@@ -652,6 +653,20 @@ export const release = {
   bulkDone: (n, r) => `שוחררו ${n} משובים${r ? ` (${r} הוחזרו לניסיון נוסף)` : ''}.`,
   bulkStale: 'המצב השתנה מאז התצוגה המקדימה, ולכן שום משוב לא שוחרר. בדקו שוב ונסו מחדש.',
   close: 'סגירה',
+
+  // Step 5 — send feedback to one student for one assignment (decisions 1-3, 7-8):
+  // release moves from per-question to a single Student × Assignment action here.
+  sendReadiness: (ready, total) => `${ready} מתוך ${total} שאלות מוכנות`,
+  sendButton: (name) => `שליחת משוב ל${name}`,
+  sendBlockedClosed: (n) => (n === 1
+    ? 'שאלה אחת מוכנה מסומנת להחזרה לתיקון, אבל המטלה סגורה. הסירו את סימון ההחזרה או פתחו את המטלה מחדש לפני השליחה.'
+    : `${n} שאלות מוכנות מסומנות להחזרה לתיקון, אבל המטלה סגורה. הסירו את סימון ההחזרה או פתחו את המטלה מחדש לפני השליחה.`),
+  sendTitle: 'שליחת משוב לתלמיד',
+  sendConfirmTitle: (name, n) => `לשלוח ל${name} משוב עבור ${n} ${n === 1 ? 'שאלה' : 'שאלות'}?`,
+  sendConfirmBody: 'התלמיד יראה את כל המשובים האלה בבת אחת. אחרי השליחה הם קבועים ואי אפשר לערוך אותם.',
+  sendConfirmAction: 'שליחת משוב',
+  sendStale: 'המצב השתנה מאז החישוב (למשל טיוטה לא הייתה מוכנה, או שהוגש ניסיון חדש), ולכן לא נשלח שום משוב. בדקו את השאלות ונסו לשלוח מחדש.',
+  sendDone: (name, n, r) => `נשלח משוב ל${name} עבור ${n} ${n === 1 ? 'שאלה' : 'שאלות'}${r ? ` (${r} הוחזרו לניסיון נוסף)` : ''}.`,
 };
 
 // Student side — minimal display needed to complete the step-4 flow
@@ -685,8 +700,13 @@ export const notifications = {
   // "בננה — אבישג וקיל" + "5 שאלות ממתינות לבדיקה" underneath.
   pendingTeacherTitle: (assignmentTitle, studentName) => `${assignmentTitle} — ${studentName}`,
   pendingCount: (n) => (n === 1 ? 'שאלה אחת ממתינה לבדיקה' : `${n} שאלות ממתינות לבדיקה`),
-  pendingStudent: (question) => `${question} — הוחזר לתיקון`,
-  eventSubmissionReceived: (student, question) => `${question} — הגשה חדשה${student ? ` (${student})` : ''}`,
-  eventFeedbackAvailable: (question) => `${question} — משוב חדש`,
-  eventReturnedForRevision: (question) => `${question} — הוחזר לתיקון`,
+  // A resubmission after a return reads distinctly (decision 5) — same unit
+  // (Student × Assignment), different, more notable wording + icon (↻).
+  correctionCount: (n) => (n === 1 ? 'תיקון התקבל' : `${n} תיקונים לבדיקה`),
+  // Student side — Assignment is the whole unit now (Notification Center
+  // principle this round): no question names anywhere, on either list.
+  pendingStudentStatus: 'הוחזרה לתיקון',
+  eventSubmissionReceived: (student) => `הגשה חדשה${student ? ` (${student})` : ''}`, // teacher's rare unmatched leftover only
+  eventFeedbackAvailable: 'התקבל משוב',
+  eventReturnedForRevision: 'הוחזר לתיקון', // rare unmatched leftover fallback only — see notificationsApi.reconcile()
 };

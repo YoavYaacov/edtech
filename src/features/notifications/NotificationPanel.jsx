@@ -13,6 +13,12 @@ import styles from './notifications.module.css';
 //     affect the bell's own number, and never repeat something already
 //     shown under "דורש טיפול" (that duplicate was already filtered out
 //     upstream, in notificationsApi.reconcile()).
+//
+// Notification Center principle (this round): this panel is an Action
+// Center, not an Event Log — every row's title is "what assignment / who",
+// its meta line is "what happened", and neither ever names a question.
+// Teacher unit stays Student × Assignment (unchanged, already accepted);
+// student unit is now the Assignment alone, on both sides of the panel.
 export default function NotificationPanel({ role, pending, events, loading, error, onRetry, onNavigate, onClose, onMarkRead }) {
   return (
     <div className={styles.panel} role="dialog" aria-label={t.panelTitle}>
@@ -40,7 +46,8 @@ export default function NotificationPanel({ role, pending, events, loading, erro
               ) : (
                 <ul className={styles.list}>
                   {pending.map((row) => {
-                    const Icon = role === 'teacher' ? Clock : RotateCcw;
+                    const isCorrection = role === 'teacher' && row.correctionCount > 0;
+                    const Icon = role === 'teacher' ? (isCorrection ? RotateCcw : Clock) : RotateCcw;
                     return (
                       <li key={row.key}>
                         <RowLink
@@ -55,14 +62,12 @@ export default function NotificationPanel({ role, pending, events, loading, erro
                           <Icon size={16} className={styles.itemIcon} aria-hidden="true" />
                           <span className={styles.itemText}>
                             <span className={styles.itemTitle}>
-                              {role === 'teacher'
-                                ? t.pendingTeacherTitle(row.assignmentTitle, row.studentName)
-                                : t.pendingStudent(row.questionTitle)}
+                              {role === 'teacher' ? t.pendingTeacherTitle(row.assignmentTitle, row.studentName) : row.assignmentTitle}
                             </span>
                             <span className={styles.itemMeta}>
                               {role === 'teacher'
-                                ? `${t.pendingCount(row.pendingCount)}${row.courseTitle ? ` · ${row.courseTitle}` : ''}`
-                                : metaLine(row)}
+                                ? `${pendingCountText(row)}${row.courseTitle ? ` · ${row.courseTitle}` : ''}`
+                                : t.pendingStudentStatus}
                             </span>
                           </span>
                           {row.unread && <span className="visually-hidden">{t.unread}</span>}
@@ -88,13 +93,13 @@ export default function NotificationPanel({ role, pending, events, loading, erro
                         <RowLink
                           href={deepLinkFor(role, row)}
                           className={`${styles.item} ${unread ? styles.unread : ''}`}
-                          onClick={() => { if (unread) onMarkRead(row.id); onNavigate(); }}
+                          onClick={() => { if (unread) onMarkRead(row.memberIds ?? row.id); onNavigate(); }}
                         >
                           {unread && <span className={styles.unreadDot} aria-hidden="true" />}
                           <Icon size={16} className={styles.itemIcon} aria-hidden="true" />
                           <span className={styles.itemText}>
-                            <span className={styles.itemTitle}>{eventTitle(row)}</span>
-                            <span className={styles.itemMeta}>{metaLine(row)} · {formatRelativeDay(row.created_at)}</span>
+                            <span className={styles.itemTitle}>{eventTitle(role, row)}</span>
+                            <span className={styles.itemMeta}>{eventMeta(row)} · {formatRelativeDay(row.created_at)}</span>
                           </span>
                           {unread && <span className="visually-hidden">{t.unread}</span>}
                         </RowLink>
@@ -120,14 +125,30 @@ function RowLink({ href, className, onClick, children }) {
     : <div className={className}>{children}</div>;
 }
 
-function metaLine(row) {
-  return row.courseTitle ? `${row.assignmentTitle} · ${row.courseTitle}` : row.assignmentTitle;
+// Teacher "דורש טיפול" meta line — plain pending count, unless the whole
+// group is resubmissions (a correction after a return), which gets its own
+// wording so it reads as the distinct, notable case it is (decision 5).
+function pendingCountText(row) {
+  if (row.correctionCount > 0 && row.correctionCount === row.pendingCount) return t.correctionCount(row.correctionCount);
+  return t.pendingCount(row.pendingCount);
 }
 
-function eventTitle(row) {
-  if (row.event_type === 'submission_received') return t.eventSubmissionReceived(row.studentName, row.questionTitle);
-  if (row.event_type === 'feedback_available') return t.eventFeedbackAvailable(row.questionTitle);
-  return t.eventReturnedForRevision(row.questionTitle);
+// A rare unmatched leftover event's title/meta — never a question name
+// (Notification Center principle). A teacher's own leftover shows who
+// submitted; a student's shows the assignment (the merged feedback_available
+// row never reaches this path — it's titled by row.assignmentTitle above).
+function eventTitle(role, row) {
+  if (role === 'student') return row.assignmentTitle;
+  return t.eventSubmissionReceived(row.studentName);
+}
+function eventMeta(row) {
+  // teacher's rare leftover: the title already names the student, so the
+  // meta line's job is to say which assignment (mirrors metaLine's old role).
+  if (row.event_type === 'submission_received') return row.courseTitle ? `${row.assignmentTitle} · ${row.courseTitle}` : row.assignmentTitle;
+  // student rows: the title is already the assignment, so the meta line's
+  // job is to say what happened.
+  const status = row.event_type === 'feedback_available' ? t.eventFeedbackAvailable : t.eventReturnedForRevision;
+  return row.courseTitle ? `${status} · ${row.courseTitle}` : status;
 }
 
 function eventIcon(eventType) {

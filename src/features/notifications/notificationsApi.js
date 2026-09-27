@@ -1,11 +1,27 @@
 import { supabase } from '../../lib/supabaseClient';
 
-// Phase 5 — Notification / Action Center, Step 2 (UI only), fix round
-// (Production acceptance round 2, 27.09.2026 — decisions 85-88).
-// No new DB objects here: everything below reads existing, already-approved
-// objects — teacher_review_queue (Phase 4), student_pending_actions and
-// public.notifications (Phase 5 step 1, migration 20260926000100) — and
-// writes only the columns the client is granted: notifications.read_at.
+// Phase 5 — Notification / Action Center.
+// Step 2 (UI only, Production acceptance rounds 1-3, decisions 76-92): teacher
+// aggregation by Student × Assignment, badge = pending units, reconciliation
+// between "דורש טיפול" and "חדש", desktop panel anchoring. All of that is
+// unchanged below and stays exactly as accepted.
+//
+// Step "workflow redesign" (this round): release moves from per-question to a
+// single Student × Assignment "send" action (see reviewApi.sendFeedbackToStudent
+// and ReviewPage). That changes WHEN/BY WHAT ACTION a student's feedback becomes
+// visible — not the notifications table, either view, or either trigger, all of
+// which are untouched here too. Two read-layer consequences of that redesign:
+//   * Teacher: a submission_received event can now mean "a first submission" or
+//     "a correction after a return" — attempt_number > 1 always means the
+//     latter, since resubmission is only ever possible after a return_for_revision
+//     (the only path that resets an answer back to 'draft' post-submission).
+//     teacher_review_queue already exposes attempt_number, so this is a plain
+//     read-layer distinction, no migration.
+//   * Student: feedback no longer arrives one question at a time, so "חדש" must
+//     stop being one row per question too — every feedback_available event for
+//     the same assignment collapses into one Presentation item, and the
+//     student's own "דורש טיפול" (returned-for-revision) rows now group by
+//     assignment the same way the teacher's already did — never by question.
 //
 // Two lists, kept apart on purpose (decision 76):
 //   * "דורש טיפול" (pending) — derived, never stored; closes itself.
@@ -13,22 +29,22 @@ import { supabase } from '../../lib/supabaseClient';
 // The bell's own number counts pending.length only (decision 76/78) — never
 // the unread event count, which is shown inside the panel alone.
 //
-// Fix-round addition (decision 86): a pending item and a stored event can be
-// two views of the *same* underlying fact (a submission, a return-for-
-// revision). Reconciliation below hides the duplicate from "חדש" and folds
-// its unread state into the pending item, entirely in this read layer — the
-// notifications table and the two views are never touched or altered.
+// A pending item and a stored event can be two views of the *same* underlying
+// fact (a submission, a return-for-revision). Reconciliation below hides the
+// duplicate from "חדש" and folds its unread state into the pending item,
+// entirely in this read layer — the notifications table and the two views are
+// never touched or altered.
 
 const EVENTS_LIMIT = 50; // a recent feed, not a full history browser
 
 // "דורש טיפול" for the given role — raw, one row per pending question.
-// Column lists mirror what the existing screens already select from these
-// same views (reviewApi.js / the phase-5 migration's student_pending_actions)
-// — no new columns, no new views.
+// attempt_number (teacher only) drives the "↻ תיקון התקבל" distinction below —
+// an existing column on teacher_review_queue that the bell simply wasn't
+// selecting before; no view/column change.
 function fetchPendingActions(role) {
   return role === 'teacher'
     ? supabase.from('teacher_review_queue')
-      .select('assignment_id, assignment_question_id, student_id, submission_id, submitted_at')
+      .select('assignment_id, assignment_question_id, student_id, submission_id, submitted_at, attempt_number')
     : supabase.from('student_pending_actions')
       .select('assignment_id, assignment_question_id, submission_id, returned_at');
 }
@@ -48,6 +64,11 @@ function fetchStoredEvents() {
 // the hub never disagree about what "one item to review" means. The
 // question actually opened is resolved below, from each row's *current*
 // position, at read time — never a position baked in earlier.
+//
+// correctionCount (this round): how many of the group's pending rows are a
+// resubmission (attempt_number > 1) rather than a first submission — used to
+// show "↻ תיקון התקבל" / "N תיקונים לבדיקה" instead of the plain "N שאלות
+// ממתינות לבדיקה" wording when that's what's actually pending.
 function groupTeacherPending(rows) {
   const groups = new Map();
   for (const r of rows) {
@@ -58,23 +79,41 @@ function groupTeacherPending(rows) {
       pendingAqIds: [],
       submissionIds: [],
       oldest: r.submitted_at,
+      correctionCount: 0,
     };
     g.pendingAqIds.push(r.assignment_question_id);
     g.submissionIds.push(r.submission_id);
+    if (r.attempt_number > 1) g.correctionCount += 1;
     if (r.submitted_at < g.oldest) g.oldest = r.submitted_at;
     groups.set(key, g);
   }
   return [...groups.values()].sort((a, b) => (a.oldest < b.oldest ? -1 : 1));
 }
 
+// Groups the student's own raw "returned for revision" rows into one item per
+// Assignment (Notification Center principle this round: the student's own
+// unit is the assignment, never the question) — the same technique as
+// groupTeacherPending above, just keyed by assignment_id alone (there is no
+// second axis on the student's own side — it's always "my own" work).
+function groupStudentPending(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    const key = r.assignment_id;
+    const g = groups.get(key) ?? { assignment_id: r.assignment_id, pendingAqIds: [], submissionIds: [], oldest: r.returned_at };
+    g.pendingAqIds.push(r.assignment_question_id);
+    g.submissionIds.push(r.submission_id);
+    if (r.returned_at < g.oldest) g.oldest = r.returned_at;
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.oldest < b.oldest ? -1 : 1));
+}
+
 // Resolves display text + the stable `position` the existing q=:position
-// deep-link contract needs (decision 56/77/81), and — for the teacher's
-// grouped items — the first still-pending question *in current assignment
-// order* (decision 85: never a hardcoded/stale position). Fetches the full
-// assignment_questions list per referenced assignment (not just the
-// pending/referenced ids) because the teacher grouping needs the whole
-// ordered list to find "first pending", the same way reviewApi's
-// fetchReviewQueue already does it.
+// deep-link contract needs (decision 56/77/81), and — for grouped items —
+// the first still-pending question *in current assignment order* (decision
+// 85: never a hardcoded/stale position). Fetches the full assignment_questions
+// list per referenced assignment (not just the pending/referenced ids)
+// because both groupings need the whole ordered list to find "first pending".
 async function enrich({ pendingRows, eventRows, role }) {
   const assignmentIds = [...new Set([
     ...pendingRows.map((r) => r.assignment_id),
@@ -100,7 +139,7 @@ async function enrich({ pendingRows, eventRows, role }) {
   ]);
   if (aq.error || a.error || s.error) return { data: null, error: aq.error || a.error || s.error };
 
-  const aqMap = new Map((aq.data ?? []).map((x) => [x.id, x]));
+  const aqMap = new Map((aq.data ?? []).map((x) => [x.id, x])); // position lookup only — never exposes a question name
   const aqByAssignment = new Map();
   for (const x of aq.data ?? []) {
     const list = aqByAssignment.get(x.assignment_id) ?? [];
@@ -115,38 +154,81 @@ async function enrich({ pendingRows, eventRows, role }) {
     const asg = aMap.get(assignmentId);
     return { assignmentTitle: asg?.title ?? '', courseTitle: asg?.course?.title ?? '' };
   }
+  function firstPendingPosition(assignmentId, pendingAqIds) {
+    const ordered = aqByAssignment.get(assignmentId) ?? [];
+    return ordered.find((x) => pendingAqIds.includes(x.id))?.position ?? null;
+  }
 
   let pending;
   if (role === 'teacher') {
-    pending = groupTeacherPending(pendingRows).map((g) => {
-      const ordered = aqByAssignment.get(g.assignment_id) ?? [];
-      const firstPending = ordered.find((x) => g.pendingAqIds.includes(x.id));
-      return {
-        ...g,
-        key: `${g.assignment_id}:${g.student_id}`,
-        position: firstPending?.position ?? null,
-        pendingCount: g.pendingAqIds.length,
-        studentName: sMap.get(g.student_id) ?? '',
-        ...assignmentMeta(g.assignment_id),
-      };
-    });
+    pending = groupTeacherPending(pendingRows).map((g) => ({
+      ...g,
+      key: `${g.assignment_id}:${g.student_id}`,
+      position: firstPendingPosition(g.assignment_id, g.pendingAqIds),
+      pendingCount: g.pendingAqIds.length,
+      studentName: sMap.get(g.student_id) ?? '',
+      ...assignmentMeta(g.assignment_id),
+    }));
   } else {
-    pending = pendingRows.map((r) => ({
-      ...r,
-      key: `${r.assignment_id}:${r.assignment_question_id}`,
-      position: aqMap.get(r.assignment_question_id)?.position ?? null,
-      questionTitle: aqMap.get(r.assignment_question_id)?.title ?? '',
-      ...assignmentMeta(r.assignment_id),
+    // Student "דורש טיפול" — one item per assignment (Notification Center
+    // principle: no question names, no per-question rows on this side either).
+    pending = groupStudentPending(pendingRows).map((g) => ({
+      ...g,
+      key: g.assignment_id,
+      position: firstPendingPosition(g.assignment_id, g.pendingAqIds),
+      pendingCount: g.pendingAqIds.length,
+      ...assignmentMeta(g.assignment_id),
     }));
   }
 
-  const events = eventRows.map((r) => ({
-    ...r,
-    position: aqMap.get(r.assignment_question_id)?.position ?? null,
-    questionTitle: aqMap.get(r.assignment_question_id)?.title ?? '',
-    studentName: role === 'teacher' ? sMap.get(r.student_id) ?? '' : null,
-    ...assignmentMeta(r.assignment_id),
-  }));
+  let events;
+  if (role === 'teacher') {
+    // position kept for deep-linking a rare unmatched leftover (reconcile()
+    // absorbs almost all of these) — never rendered as a question name.
+    events = eventRows.map((r) => ({
+      ...r,
+      position: aqMap.get(r.assignment_question_id)?.position ?? null,
+      studentName: sMap.get(r.student_id) ?? '',
+      ...assignmentMeta(r.assignment_id),
+    }));
+  } else {
+    // Student "חדש": every feedback_available event for the same assignment
+    // collapses into one Presentation item (Notification Center principle) —
+    // informational, distinct from the actionable pending group above, and
+    // never merged with returned_for_revision (a different type, absorbed
+    // separately by reconcile() below, never shown here on its own once
+    // absorbed). Unread if ANY member is unread; a click marks every member
+    // read at once, the same "absorb several stored events into one click"
+    // pattern decision 86/B3 already established for the teacher.
+    const fbGroups = new Map();
+    const other = [];
+    for (const r of eventRows) {
+      if (r.event_type !== 'feedback_available') { other.push(r); continue; }
+      const g = fbGroups.get(r.assignment_id) ?? { memberIds: [], anyUnread: false, created_at: r.created_at };
+      g.memberIds.push(r.id);
+      if (!r.read_at) g.anyUnread = true;
+      if (r.created_at > g.created_at) g.created_at = r.created_at;
+      fbGroups.set(r.assignment_id, g);
+    }
+    const merged = [...fbGroups.entries()].map(([assignmentId, g]) => ({
+      id: `fb:${assignmentId}`,
+      event_type: 'feedback_available',
+      assignment_id: assignmentId,
+      memberIds: g.memberIds,
+      created_at: g.created_at,
+      read_at: g.anyUnread ? null : g.created_at, // any() unread → the merged row itself reads as unread
+      ...assignmentMeta(assignmentId),
+    }));
+    // rare/paranoid fallback: a returned_for_revision event reconcile() didn't
+    // absorb (should be absorbed in the steady state); keeps its own
+    // question's position for deep-linking, never rendered as a question name.
+    const otherMapped = other.map((r) => ({
+      ...r,
+      position: aqMap.get(r.assignment_question_id)?.position ?? null,
+      ...assignmentMeta(r.assignment_id),
+    }));
+    events = [...merged, ...otherMapped].sort((x, y) => (x.created_at < y.created_at ? 1 : -1));
+  }
 
   return { data: { pending, events }, error: null };
 }
@@ -155,8 +237,8 @@ async function enrich({ pendingRows, eventRows, role }) {
 // event can describe the same fact —
 //   * teacher: a pending group's questions each came from a submission that
 //     also produced a "submission_received" event for that same submission.
-//   * student: a pending "returned for revision" row IS the same fact as a
-//     "returned_for_revision" event for that same submission.
+//   * student: a pending "returned for revision" group IS the same fact as
+//     the "returned_for_revision" events for that assignment.
 // Any event matched this way is (a) removed from "חדש" so it never shows
 // twice, and (b) reflected on the pending item as `unread` (true if at
 // least one matched event is still unread) + `absorbedEventIds` (every
@@ -165,23 +247,23 @@ async function enrich({ pendingRows, eventRows, role }) {
 // This never touches the notifications table or either view — purely a
 // presentation-layer merge over data already fetched.
 //
-// Round-3 fix (decision 92): the teacher side matches by the *group's*
-// assignment_id + student_id — not by the submission_ids of only the
-// questions still pending right now. Matching by submission_id alone left
-// two real cases undeduplicated: a superseded earlier attempt of the same
-// question (the derived queue only ever holds the latest attempt per
-// question — F9/N7 — so an older attempt's submission_received event has a
-// submission_id the current group no longer lists), and a submission for a
-// *different* question in the same assignment+student that already got
-// reviewed (also not in the group's currently-pending submission_ids). The
-// unit the teacher cares about is "this student's work on this assignment"
-// — decision 85's own grouping — so that's the reconciliation key too: any
-// submission_received event for that assignment+student is the same fact
-// as "this pending group", regardless of which specific question/attempt
-// produced it. The student side is unchanged (still per-submission,
-// returned_for_revision only) — not part of this round's reported issue,
-// and feedback_available must keep showing under "חדש" on its own, exactly
-// as before, since it is never the matched type on either side.
+// Round-3 fix (decision 92, teacher side, unchanged): matches by the
+// *group's* assignment_id + student_id — not by the submission_ids of only
+// the questions still pending right now — because the derived queue only
+// ever holds the latest attempt per question, so a superseded earlier
+// attempt (or an already-reviewed other question) would otherwise leave an
+// undeduplicated leftover. The unit the teacher cares about is "this
+// student's work on this assignment" (decision 85's own grouping), so
+// that's the reconciliation key too.
+//
+// This round's extension (student side): the student's own pending group is
+// now assignment-level too (was per-submission before), so its match key
+// widens the same way, from exact submission_id to assignment_id — any
+// returned_for_revision event for that assignment is the same fact as "this
+// student has an open revision on this assignment", regardless of which
+// specific question/attempt produced it. feedback_available is never the
+// matched type on either side and must keep appearing under "חדש" as
+// before (now as the merged, assignment-level item built above).
 function reconcile(pending, events, role) {
   const absorbedIds = new Set();
   const mergedPending = pending.map((item) => {
@@ -190,7 +272,7 @@ function reconcile(pending, events, role) {
         && e.assignment_id === item.assignment_id
         && e.student_id === item.student_id)
       : events.filter((e) => e.event_type === 'returned_for_revision'
-        && e.submission_id === item.submission_id);
+        && e.assignment_id === item.assignment_id);
 
     matched.forEach((e) => absorbedIds.add(e.id));
     return {
@@ -222,8 +304,9 @@ export async function fetchNotificationCenter(role) {
 
 // Recipient marks their own event(s) read — the only client write this
 // table allows (grant update (read_at); RLS scopes it to recipient_id =
-// auth.uid()). Accepts one or several ids so a merged pending item (bug B3)
-// can clear every event it absorbed in a single request.
+// auth.uid()). Accepts one or several ids so a merged pending/event item
+// (bug B3; and this round's merged student feedback_available item) can
+// clear every event it absorbed/represents in a single request.
 export const markNotificationsRead = (ids) => {
   const list = ids.filter(Boolean);
   if (!list.length) return Promise.resolve({ data: null, error: null });
@@ -235,9 +318,20 @@ export const markNotificationsRead = (ids) => {
 // no change to either page is needed. For a teacher's grouped item,
 // `position` is the first still-pending question as of this fetch, per
 // decision 85 — resolved here at read time, never hardcoded.
+//
+// This round's addition: the student's merged "משוב התקבל" item has no
+// single question to jump to any more — release is Student × Assignment now
+// — so it opens the assignment itself, never a specific question. Every
+// other student row (the actionable "↻ הוחזרה לתיקון" pending group, and any
+// unabsorbed returned_for_revision leftover) still resolves to the first
+// relevant question's position, exactly as before.
 export function deepLinkFor(role, row) {
-  if (!row.assignment_id || !row.position) return null;
-  return role === 'teacher'
-    ? `/teacher/assignments/${row.assignment_id}/review?student=${row.student_id}&q=${row.position}`
-    : `/student/assignments/${row.assignment_id}?q=${row.position}`;
+  if (!row.assignment_id) return null;
+  if (role === 'teacher') {
+    if (!row.position) return null;
+    return `/teacher/assignments/${row.assignment_id}/review?student=${row.student_id}&q=${row.position}`;
+  }
+  if (row.event_type === 'feedback_available') return `/student/assignments/${row.assignment_id}`;
+  if (!row.position) return null;
+  return `/student/assignments/${row.assignment_id}?q=${row.position}`;
 }

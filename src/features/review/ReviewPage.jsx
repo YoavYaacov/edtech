@@ -8,8 +8,8 @@ import Select from '../../components/ui/Select';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
 import Markdown from '../../components/markdown/Markdown';
-import FeedbackForm from './FeedbackForm';
-import { fetchReference, fetchReviewData, previewReadyFeedback, releaseReadyFeedback } from './reviewApi';
+import FeedbackForm, { isReady } from './FeedbackForm';
+import { fetchReference, fetchReviewData, sendFeedbackToStudent } from './reviewApi';
 import { useAsync } from '../../lib/useAsync';
 import { errors, formatDateTime, nav, questionLabels as L, release as rl, review as t } from '../../i18n/he';
 
@@ -65,8 +65,8 @@ function ReviewView({ data, reload, flash, setFlash }) {
   const [conflict, setConflict] = useState('');
   const [nextMsg, setNextMsg] = useState('');
   const flushRef = useRef(null); // flush() of the open feedback form
-  const [bulk, setBulk] = useState(null); // { preview } | { error }
-  const [bulkBusy, setBulkBusy] = useState(false);
+  const [send, setSend] = useState(null); // { ids, count, withReturn, studentName } | { error, studentName }
+  const [sendBusy, setSendBusy] = useState(false);
 
   const answerOf = (sid, aqId) => data.answers.find((a) => a.student_id === sid && a.assignment_question_id === aqId);
   const subsOf = (answer) => (answer ? data.submissions.filter((s) => s.answer_id === answer.id) : []);
@@ -86,27 +86,6 @@ function ReviewView({ data, reload, flash, setFlash }) {
   const qi = Math.min(Math.max(Number(params.get('q') ?? ((firstPendingOfStudent?.qi ?? 0) + 1)) - 1, 0), Math.max(questions.length - 1, 0));
   const go = (sid, index) => { setNextMsg(''); setFlash(''); setParams({ student: sid, q: String(index + 1) }); };
 
-  // Bulk release (decision 67): save the open draft → preview → confirm → release EXACTLY the previewed list.
-  async function openBulk() {
-    setBulkBusy(true);
-    setFlash('');
-    if (flushRef.current) await flushRef.current();
-    const { data: p, error } = await previewReadyFeedback(assignment.id);
-    setBulkBusy(false);
-    setBulk(error ? { error: errors.generic } : { preview: p });
-  }
-  async function confirmBulk() {
-    const ids = bulk.preview.ready_ids;
-    setBulkBusy(true);
-    const { data: r, error } = await releaseReadyFeedback(assignment.id, ids);
-    setBulkBusy(false);
-    if (error) return setBulk({ error: errors.generic });
-    if (!r.ok) return setBulk({ error: r.reason === 'stale' ? rl.bulkStale : errors.generic });
-    setBulk(null);
-    setFlash(rl.bulkDone(r.released, r.returned));
-    reload();
-  }
-
   function goNextPending() {
     const cur = pairs.findIndex((p) => p.sid === studentId && p.qi === qi);
     const ordered = [...pairs.slice(cur + 1), ...pairs.slice(0, Math.max(cur, 0))];
@@ -122,6 +101,60 @@ function ReviewView({ data, reload, flash, setFlash }) {
   const answer = answerOf(student.id, aq.id);
   const subs = subsOf(answer);
 
+  // Student × Assignment readiness (decisions 1+2): every submission of this
+  // student currently awaiting the teacher's action (latest attempt, submitted,
+  // not yet released — exactly the 'pending'/'pending_draft' cellState cases)
+  // must be ready before anything can be sent; no partial send. "Ready" mirrors
+  // FeedbackForm's own isReady(), over the same live forms state its per-question
+  // indicator already reads — not a new source of truth, and no round trip to
+  // the server needed to know it, since it only reflects what is on screen.
+  const studentPendingSubs = questions
+    .map((qq) => {
+      const ans = answerOf(student.id, qq.id);
+      const qSubs = subsOf(ans);
+      const st = cellState(ans, qSubs, qSubs.length && forms[qSubs[qSubs.length - 1].id]?.saved);
+      return st === 'pending' || st === 'pending_draft' ? qSubs[qSubs.length - 1] : null;
+    })
+    .filter(Boolean);
+  // mirrors private.release_block_reason's own 'closed_no_return' block, so the
+  // send never walks into a doomed all-or-nothing failure over something we can
+  // already see from here (Return-for-revision interaction check, decision 5).
+  const subSendState = (sub) => {
+    const v = forms[sub.id]?.values;
+    if (!v || !isReady(v)) return 'not_ready';
+    if (v.ret && assignment.status !== 'published') return 'blocked_closed';
+    return 'ready';
+  };
+  const sendStates = studentPendingSubs.map(subSendState);
+  const totalPending = studentPendingSubs.length;
+  const readyCount = sendStates.filter((s) => s === 'ready').length;
+  const blockedCount = sendStates.filter((s) => s === 'blocked_closed').length;
+  const allSendable = totalPending > 0 && readyCount === totalPending;
+
+  // Send to student (decisions 1-3, 7-8): flush the open draft, then release
+  // EXACTLY this student's currently-ready set in one atomic call, reusing the
+  // existing all-or-nothing release_ready_feedback (decision 67) — no new RPC.
+  async function askSend() {
+    const ids = studentPendingSubs.filter((s, i) => sendStates[i] === 'ready').map((s) => s.id);
+    const withReturn = studentPendingSubs.filter((s, i) => sendStates[i] === 'ready' && forms[s.id].values.ret).length;
+    setSendBusy(true);
+    setFlash('');
+    if (flushRef.current) await flushRef.current();
+    setSendBusy(false);
+    setSend({ ids, count: ids.length, withReturn, studentName: student.full_name });
+  }
+  async function confirmSend() {
+    setSendBusy(true);
+    const { data: r, error } = await sendFeedbackToStudent(assignment.id, send.ids);
+    setSendBusy(false);
+    if (error) return setSend({ error: errors.generic, studentName: send.studentName });
+    if (!r.ok) return setSend({ error: r.reason === 'stale' ? rl.sendStale : errors.generic, studentName: send.studentName });
+    const name = send.studentName;
+    setSend(null);
+    setFlash(rl.sendDone(name, r.released, r.returned));
+    reload();
+  }
+
   return (
     <div className={styles.page}>
       <Link to={`/teacher/assignments/${assignment.id}`} className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{t.back}</Link>
@@ -131,13 +164,27 @@ function ReviewView({ data, reload, flash, setFlash }) {
           <p className={styles.muted}>{assignment.title} · {assignment.course?.title}</p>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="secondary" icon={Send} loading={bulkBusy && !bulk} onClick={openBulk}>{rl.bulk}</Button>
           <Button variant="secondary" icon={SkipForward} onClick={goNextPending}>{t.nextPending}</Button>
         </div>
       </header>
       {flash && <p className={styles.success} role="status">{flash}</p>}
       {nextMsg && <p className={styles.info} role="status">{nextMsg}</p>}
       {conflict && <p className={styles.warning} role="alert">{conflict}</p>}
+
+      {totalPending > 0 && (
+        <div className={styles.sendBox}>
+          <span className={allSendable ? styles.readyOk : styles.readyNo} role="status">
+            {allSendable ? <CheckCircle2 size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />}
+            {rl.sendReadiness(readyCount, totalPending)}
+          </span>
+          {blockedCount > 0 && (
+            <p className={styles.warning} role="alert">{rl.sendBlockedClosed(blockedCount)}</p>
+          )}
+          <Button icon={Send} onClick={askSend} disabled={!allSendable || sendBusy} loading={sendBusy}>
+            {rl.sendButton(student.full_name)}
+          </Button>
+        </div>
+      )}
 
       <nav className={styles.navBar} aria-label={t.title}>
         <div className={styles.studentSelect}>
@@ -181,31 +228,22 @@ function ReviewView({ data, reload, flash, setFlash }) {
         </div>
       </div>
 
-      {bulk?.preview && (
-        <ConfirmDialog open title={rl.bulkTitle}
-          body={<BulkSummary p={bulk.preview} />}
-          confirmLabel={bulk.preview.ready_ids.length ? rl.bulkConfirm(bulk.preview.ready_ids.length) : null}
-          cancelLabel={rl.close} busy={bulkBusy} onConfirm={confirmBulk} onCancel={() => setBulk(null)} />
+      {send && !send.error && (
+        <ConfirmDialog open title={rl.sendConfirmTitle(send.studentName, send.count)}
+          body={(
+            <span className={styles.bulkList}>
+              <span>{rl.sendConfirmBody}</span>
+              {send.withReturn > 0 && <span>{rl.bulkWithReturn(send.withReturn)}</span>}
+            </span>
+          )}
+          confirmLabel={rl.sendConfirmAction} cancelLabel={rl.close} busy={sendBusy}
+          onConfirm={confirmSend} onCancel={() => setSend(null)} />
       )}
-      {bulk?.error && (
-        <ConfirmDialog open title={rl.bulkTitle} body={bulk.error} confirmLabel={null} cancelLabel={rl.close}
-          onCancel={() => { setBulk(null); reload(); }} />
+      {send?.error && (
+        <ConfirmDialog open title={rl.sendTitle} body={send.error} confirmLabel={null} cancelLabel={rl.close}
+          onCancel={() => { setSend(null); reload(); }} />
       )}
     </div>
-  );
-}
-
-function BulkSummary({ p }) {
-  const n = p.ready_ids.length;
-  return (
-    <span className={styles.bulkList}>
-      {n === 0 ? <span>{rl.bulkNothing}</span> : <strong>{rl.bulkReady(n)}</strong>}
-      {p.ready_with_return > 0 && <span>{rl.bulkWithReturn(p.ready_with_return)}</span>}
-      {p.not_ready > 0 && <span>{rl.bulkNotReady(p.not_ready)}</span>}
-      {p.no_feedback > 0 && <span>{rl.bulkNoFeedback(p.no_feedback)}</span>}
-      {p.blocked_closed > 0 && <span>{rl.bulkBlocked(p.blocked_closed)}</span>}
-      {n > 0 && <span className={styles.bulkNote}>{rl.bulkAllOrNothing}</span>}
-    </span>
   );
 }
 

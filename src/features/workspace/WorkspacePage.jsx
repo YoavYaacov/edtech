@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Eye, Lightbulb, Lock, Pencil, Send } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Clock, Eye, Lightbulb, Lock, Pencil, Send } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -103,15 +103,20 @@ function WorkspaceView({ data }) {
 
       <nav className={styles.stepper} aria-label={t.questionOf(index + 1, n)}>
         {questions.map((q, i) => {
-          const st = answerState(answers[q.id]);
-          const Icon = st === 'submitted' ? CheckCircle2 : st === 'draft' ? Pencil : CircleDashed;
+          // Feedback now arrives Student × Assignment, not per question (Step 5),
+          // so within the assignment the student needs a clear per-question signal
+          // of which ones already have feedback to look at (decision 6) — a plain
+          // 'submitted' no longer implies "nothing more to see here".
+          const base = answerState(answers[q.id]);
+          const st = base === 'submitted' && reviews[q.id]?.feedback ? 'reviewed' : base;
+          const Icon = st === 'reviewed' ? CheckCircle2 : st === 'submitted' ? Clock : st === 'draft' ? Pencil : CircleDashed;
           return (
             <button key={q.id} type="button" onClick={() => go(i)} data-state={st}
               className={`${styles.step} ${i === index ? styles.stepCurrent : ''}`}
               aria-current={i === index ? 'step' : undefined} title={q.title}>
               <span className={styles.stepNum}>{i + 1}</span>
               <Icon size={14} aria-hidden="true" />
-              <span className="visually-hidden">{q.title}</span>
+              <span className="visually-hidden">{q.title}{st === 'reviewed' ? ` – ${t.stepReviewed}` : ''}</span>
             </button>
           );
         })}

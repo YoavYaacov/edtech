@@ -88,6 +88,9 @@
 
 /* Phase 4 step 4 */
 .headerActions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Step 5 — Student × Assignment send box (decisions 1-3): readiness + one send action */
+.sendBox { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
 .success { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--success-tint);
   color: var(--success); border: 1px solid var(--mint-200); font-weight: 500; }
 .bulkList { display: flex; flex-direction: column; gap: 6px; }

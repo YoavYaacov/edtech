@@ -76,11 +76,27 @@ export const saveFeedbackMetadata = (sid, v) => supabase.rpc('save_feedback_meta
 });
 
 // ---------- Step 4: release / return / bulk (existing RPCs only; no direct CRUD) ----------
+// releaseFeedback/previewReadyFeedback/releaseReadyFeedback are no longer called from the
+// review UI (Step 5, decision 1+4: release is now a Student × Assignment action — see
+// sendFeedbackToStudent below), but stay exported: they still wrap valid, unchanged RPCs,
+// and there is no reason to remove backend-adjacent access that isn't otherwise broken.
 export const releaseFeedback = (sid) => supabase.rpc('release_feedback', { p_submission_id: sid });
 export const returnForRevision = (sid) => supabase.rpc('return_for_revision', { p_submission_id: sid });
 export const previewReadyFeedback = (assignmentId) => supabase.rpc('preview_ready_feedback', { p_assignment_id: assignmentId });
 export const releaseReadyFeedback = (assignmentId, submissionIds) =>
   supabase.rpc('release_ready_feedback', { p_assignment_id: assignmentId, p_submission_ids: submissionIds });
+
+// ---------- Step 5: send feedback to one student for one assignment ----------
+// No new RPC (decision 8): release_ready_feedback is already a generic, atomic,
+// all-or-nothing bulk release over an explicit submission_id array (decision 67) —
+// it never assumed that array was "the whole assignment", only that every id in it
+// belongs to p_assignment_id. The caller (ReviewPage) computes exactly one student's
+// currently-ready, currently-unreleased submission ids from data it already has
+// loaded (mirroring FeedbackForm's own isReady() predicate) and passes that subset
+// here. The server remains the source of truth: release_block_reason is re-checked
+// per id under lock before anything is written, so a stale/changed item fails the
+// whole batch safely rather than releasing part of it.
+export const sendFeedbackToStudent = (assignmentId, submissionIds) => releaseReadyFeedback(assignmentId, submissionIds);
 
 // ---------- Review queue: one row per (student × assignment) ----------
 // Built on the existing teacher_review_queue view (one row per pending question).

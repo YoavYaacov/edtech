@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, EyeOff, Lock, RotateCcw, Save, Send, Tags } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, EyeOff, Lock, RotateCcw, Save, Tags } from 'lucide-react';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Button from '../../components/ui/Button';
 import TextArea from '../../components/ui/TextArea';
@@ -8,7 +8,7 @@ import Markdown from '../../components/markdown/Markdown';
 import VerdictPicker from './VerdictPicker';
 import { useAutosave } from '../workspace/useAutosave';
 import { buildTree, flattenTree } from '../../lib/topicTree';
-import { releaseFeedback, returnForRevision, saveFeedbackDraft, saveFeedbackMetadata } from './reviewApi';
+import { returnForRevision, saveFeedbackDraft, saveFeedbackMetadata } from './reviewApi';
 import { common, errors, formatDateTime, formatTime, release as rl, review as t, verdictLabels } from '../../i18n/he';
 import styles from './review.module.css';
 
@@ -28,7 +28,7 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
   const mode = fb?.released_at ? 'metadata' : 'draft';
   const [v, setV] = useState(initial);
   const [preview, setPreview] = useState(false);
-  const [confirm, setConfirm] = useState(null); // 'release' | 'return'
+  const [confirm, setConfirm] = useState(false); // late-return confirm only (decision 1: no per-question release anymore)
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
 
@@ -48,31 +48,25 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
     onSaved: (raw) => onSaved(raw),
   });
 
-  // the page can save this draft before a bulk preview
+  // the page can flush this draft before computing/sending Student × Assignment readiness
   useEffect(() => {
     registerFlush?.(flush);
     return () => registerFlush?.(null);
   }, [flush, registerFlush]);
 
-  // Step 4 — existing RPCs only (release_feedback / return_for_revision).
-  const canRelease = mode === 'draft' && isLatest && answerStatus === 'submitted';
+  // Step 5 — release to the student is now a Student × Assignment action on
+  // ReviewPage (decision 1); this form only authors/saves the draft. Late
+  // return of already-released feedback is the one exception that stays here.
   const canLateReturn = mode === 'metadata' && isLatest && answerStatus === 'submitted' && !fb.return_for_revision;
 
-  async function askRelease() {
-    setActionError('');
-    const saved = await flush(); // the release must see exactly what is on screen
-    if (!saved) return setActionError(errors.generic);
-    setConfirm('release');
-  }
-  async function doAction() {
+  async function doReturn() {
     setBusy(true);
-    const kind = confirm;
-    const { data, error } = kind === 'release' ? await releaseFeedback(submission.id) : await returnForRevision(submission.id);
+    const { data, error } = await returnForRevision(submission.id);
     setBusy(false);
-    setConfirm(null);
+    setConfirm(false);
     if (error) return setActionError(errors.generic);
     if (!data?.ok) return setActionError(rl.reasons[data?.reason] ?? errors.generic);
-    onDone(kind === 'release' ? (data.returned ? rl.releasedAndReturned : rl.released) : rl.returned);
+    onDone(rl.returned);
   }
 
   function set(patch) {
@@ -170,28 +164,21 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
       {actionError && <p className={styles.warning} role="alert">{actionError}</p>}
       <div className={styles.formActions}>
         <Button variant="secondary" icon={Save} onClick={() => flush()} disabled={status === 'saving' || busy}>{mode === 'draft' ? t.saveDraft : common.save}</Button>
-        {canRelease && (
-          <Button icon={Send} onClick={askRelease} disabled={!ready || busy} title={ready ? undefined : rl.notReadyHint}>
-            {v.ret ? rl.releaseAndReturn : rl.release}
-          </Button>
-        )}
         {canLateReturn && (
-          <Button variant="secondary" icon={RotateCcw} onClick={() => { setActionError(''); setConfirm('return'); }} disabled={busy}>
+          <Button variant="secondary" icon={RotateCcw} onClick={() => { setActionError(''); setConfirm(true); }} disabled={busy}>
             {rl.lateReturn}
           </Button>
         )}
       </div>
 
       {confirm && (
-        <ConfirmDialog open busy={busy} onConfirm={doAction} onCancel={() => setConfirm(null)}
-          title={confirm === 'release' ? rl.confirmTitle : rl.lateReturnTitle}
-          confirmLabel={confirm === 'release' ? (v.ret ? rl.releaseAndReturn : rl.release) : rl.lateReturn}
+        <ConfirmDialog open busy={busy} onConfirm={doReturn} onCancel={() => setConfirm(false)}
+          title={rl.lateReturnTitle} confirmLabel={rl.lateReturn}
           body={(
             <span className={styles.bulkList}>
-              <span>{confirm === 'release' ? rl.confirmBody : rl.lateReturnBody}</span>
-              {confirm === 'release' && v.ret && <span>{rl.confirmReturn}</span>}
-              {(confirm === 'return' || v.ret) && solutionSeen && <strong>{t.solutionSeenWarning}</strong>}
-              {(confirm === 'return' || v.ret) && assignmentStatus !== 'published' && <strong>{rl.reasons.closed_no_return}</strong>}
+              <span>{rl.lateReturnBody}</span>
+              {solutionSeen && <strong>{t.solutionSeenWarning}</strong>}
+              {assignmentStatus !== 'published' && <strong>{rl.reasons.closed_no_return}</strong>}
             </span>
           )} />
       )}

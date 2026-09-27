@@ -33,7 +33,11 @@
   color: var(--text-muted); cursor: pointer; font-weight: 600;
 }
 .step[data-state='draft'] { background: var(--butter-50); border-color: var(--butter-200); color: var(--butter-700); }
-.step[data-state='submitted'] { background: var(--mint-50); border-color: var(--mint-200); color: var(--mint-700); }
+/* 'submitted' = awaiting feedback (peach, matches the teacher's own "pending"
+   tone); 'reviewed' = feedback received (mint, matches the released-feedback
+   info box elsewhere) — Step 5 needs the two visually distinct (decision 6). */
+.step[data-state='submitted'] { background: var(--peach-50); border-color: var(--peach-200); color: var(--peach-700); }
+.step[data-state='reviewed'] { background: var(--mint-50); border-color: var(--mint-200); color: var(--mint-700); }
 .stepCurrent { outline: 3px solid var(--lavender-200); border-color: var(--primary); }
 .stepNum { font-variant-numeric: tabular-nums; }
 
