@@ -404,6 +404,7 @@ export const assignments = {
   questionsFrozenNote: 'המטלה פורסמה: רשימת השאלות והסדר קבועים. התלמידים רואים את הגרסה שפורסמה.',
   addQuestions: 'הוספת שאלות מהמאגר',
   closePicker: 'סיום הוספה',
+  clearPickerFilters: 'נקה סינון', // explicit reset only — never automatic on selection (UX fix, Round 5)
   pickerSearch: 'חיפוש שאלה בקורס',
   pickerEmpty: 'אין עוד שאלות זמינות בקורס הזה.',
   add: 'הוספה',

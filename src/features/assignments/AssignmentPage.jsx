@@ -110,7 +110,13 @@ export default function AssignmentPage() {
 
       <DetailsPanel assignment={a} onSaved={aQ.reload} />
 
-      {qQ.status === 'ready' && (
+      {/* Gate on qQ.data, not qQ.status === 'ready': useAsync's reload() flips status to
+          'loading' immediately but keeps the previous data (see useAsync.js) — gating on
+          status here used to unmount QuestionsPanel on every add/remove (onChanged calls
+          qQ.reload()), which destroyed its search text, filters and scroll position for no
+          reason. Gating on data keeps it mounted across a reload; the panel only disappears
+          before the very first load, exactly as before. */}
+      {qQ.data && (
         <QuestionsPanel assignment={a} items={qQ.data} onChanged={qQ.reload} />
       )}
       {qQ.status === 'error' && <ErrorState message={errors.generic} onRetry={qQ.reload} />}
@@ -166,15 +172,23 @@ function DetailsPanel({ assignment, onSaved }) {
   );
 }
 
+const DEFAULT_PICKER_FILTERS = { topic: '', difficulty: '', source: '', status: 'active' };
+
 function QuestionsPanel({ assignment, items, onChanged }) {
   const isDraft = assignment.status === 'draft';
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Same filtering as the question bank (the course is fixed by the assignment).
+  // Search text, filters and results deliberately survive adding/removing a
+  // question (fixed by not unmounting this panel on qQ.reload() any more —
+  // see AssignmentPage) and survive closing/reopening the picker too, so a
+  // teacher picking several questions from the same search never loses it by
+  // accident. The only resets are explicit: the "נקה סינון" button below.
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
-  const [f, setF] = useState({ topic: '', difficulty: '', source: '', status: 'active' });
+  const [f, setF] = useState(DEFAULT_PICKER_FILTERS);
+  const resetFilters = () => { setSearchText(''); setSearch(''); setF(DEFAULT_PICKER_FILTERS); };
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchText), 350); // live search, debounced
     return () => clearTimeout(timer);
@@ -253,11 +267,16 @@ function QuestionsPanel({ assignment, items, onChanged }) {
       </ol>
 
       {isDraft && !picking && <Button variant="secondary" icon={Plus} onClick={() => setPicking(true)}>{t.addQuestions}</Button>}
-      {isDraft && picking && (
+      {isDraft && picking && (() => {
+        const hasActiveFilters = Boolean(searchText || f.topic || f.difficulty || f.source || f.status !== 'active');
+        return (
         <div className={styles.picker}>
           <div className={styles.pickerHead}>
             <h3 className={styles.pickerTitle}>{t.pickerFiltersTitle}</h3>
-            <Button variant="ghost" onClick={() => setPicking(false)}>{t.closePicker}</Button>
+            <span className={styles.pickerHeadActions}>
+              {hasActiveFilters && <Button variant="ghost" onClick={resetFilters}>{t.clearPickerFilters}</Button>}
+              <Button variant="ghost" onClick={() => setPicking(false)}>{t.closePicker}</Button>
+            </span>
           </div>
           <div className={styles.pickerFilters}>
             <div className={styles.full}>
@@ -295,7 +314,8 @@ function QuestionsPanel({ assignment, items, onChanged }) {
             ))}
           </ul>
         </div>
-      )}
+        );
+      })()}
     </section>
   );
 }
