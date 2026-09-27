@@ -28,17 +28,28 @@
 
 /* position: fixed (not absolute-relative-to-.wrap) on purpose (decision 87,
    fixing bug B5): anchoring to the small bell wrapper and growing the panel
-   by a viewport-derived width is what caused the reported mobile overflow —
+   by a viewport-derived width is what caused the earlier mobile overflow —
    depending on exactly where that small element sits, growth toward the
-   opposite edge can overshoot it. Fixed positioning with both inline insets
-   set (end + a capped width, so the start edge is implied) cannot overshoot
-   the viewport regardless of the bell's exact position, on any screen size. */
+   opposite edge can overshoot it. Fixed positioning with a capped width
+   cannot overshoot the viewport regardless of the bell's exact position.
+   Round-3 fix (decision 91, bug #1): the anchor side was wrong, not the
+   fixed-positioning idea itself. The sidebar — and the bell inside it —
+   sits on the *right* in this RTL app (AppShell.module.css's own comment:
+   "desktop sidebar (sits on the right in RTL)"). In RTL, inline-start is
+   the right edge and inline-end is the left edge — the previous rule set
+   inset-inline-end, anchoring the panel to the LEFT edge, on the opposite
+   side from the sidebar/bell it was supposed to sit next to. Anchored here
+   from var(--nav-width) — the sidebar's own width, already defined in
+   tokens.css and used by AppShell's grid — rather than a pixel number
+   guessed from one screen, so it sits flush against the sidebar's edge
+   (a small gap in) on any desktop window width, and the width formula
+   below still guarantees the left edge can never pass the viewport. */
 .panel {
   position: fixed;
-  top: 64px;
-  inset-inline-end: var(--space-4);
-  inset-inline-start: auto;
-  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  top: calc(var(--space-5) + 40px); /* sidebar's own top padding + the bell button's height */
+  inset-inline-start: calc(var(--nav-width) + var(--space-3));
+  inset-inline-end: auto;
+  width: min(420px, calc(100vw - var(--nav-width) - 2 * var(--space-3)));
   max-height: min(560px, calc(100vh - 96px));
   z-index: 30;
   background: var(--surface);

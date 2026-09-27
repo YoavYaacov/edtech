@@ -164,21 +164,33 @@ async function enrich({ pendingRows, eventRows, role }) {
 // one go (bug B3) instead of leaving the "חדש" dot to be cleared separately.
 // This never touches the notifications table or either view — purely a
 // presentation-layer merge over data already fetched.
+//
+// Round-3 fix (decision 92): the teacher side matches by the *group's*
+// assignment_id + student_id — not by the submission_ids of only the
+// questions still pending right now. Matching by submission_id alone left
+// two real cases undeduplicated: a superseded earlier attempt of the same
+// question (the derived queue only ever holds the latest attempt per
+// question — F9/N7 — so an older attempt's submission_received event has a
+// submission_id the current group no longer lists), and a submission for a
+// *different* question in the same assignment+student that already got
+// reviewed (also not in the group's currently-pending submission_ids). The
+// unit the teacher cares about is "this student's work on this assignment"
+// — decision 85's own grouping — so that's the reconciliation key too: any
+// submission_received event for that assignment+student is the same fact
+// as "this pending group", regardless of which specific question/attempt
+// produced it. The student side is unchanged (still per-submission,
+// returned_for_revision only) — not part of this round's reported issue,
+// and feedback_available must keep showing under "חדש" on its own, exactly
+// as before, since it is never the matched type on either side.
 function reconcile(pending, events, role) {
-  const eventsBySubmission = new Map();
-  for (const e of events) {
-    const list = eventsBySubmission.get(e.submission_id) ?? [];
-    list.push(e);
-    eventsBySubmission.set(e.submission_id, list);
-  }
-
   const absorbedIds = new Set();
   const mergedPending = pending.map((item) => {
-    const submissionIds = role === 'teacher' ? item.submissionIds : [item.submission_id];
-    const matchType = role === 'teacher' ? 'submission_received' : 'returned_for_revision';
-    const matched = submissionIds
-      .flatMap((sid) => eventsBySubmission.get(sid) ?? [])
-      .filter((e) => e.event_type === matchType);
+    const matched = role === 'teacher'
+      ? events.filter((e) => e.event_type === 'submission_received'
+        && e.assignment_id === item.assignment_id
+        && e.student_id === item.student_id)
+      : events.filter((e) => e.event_type === 'returned_for_revision'
+        && e.submission_id === item.submission_id);
 
     matched.forEach((e) => absorbedIds.add(e.id));
     return {
