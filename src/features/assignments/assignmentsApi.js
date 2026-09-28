@@ -1,11 +1,14 @@
 import { supabase } from '../../lib/supabaseClient';
 
 // ---------- teacher ----------
+// Round 6, section I.1: newest first — ordered by created_at (when the
+// assignment was created), not updated_at, so editing an old assignment
+// (e.g. its due date) never reshuffles it above assignments created later.
 export function fetchAssignments() {
   return supabase
     .from('assignments')
-    .select('id, title, status, due_at, updated_at, course:courses(id, title), assignment_students(count), assignment_questions(count)')
-    .order('updated_at', { ascending: false });
+    .select('id, title, status, due_at, created_at, course:courses(id, title), assignment_students(count), assignment_questions(count)')
+    .order('created_at', { ascending: false });
 }
 
 export function createAssignment(ownerId, { courseId, title }) {

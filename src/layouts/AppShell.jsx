@@ -14,7 +14,7 @@ export default function AppShell({ items }) {
   // sidebar and the mobile topbar below always mount — only one is
   // CSS-hidden per viewport — so fetching per-bell would double every request.
   const notif = useNotificationCenter(profile.role);
-  const bellProps = { role: profile.role, pending: notif.pending, events: notif.events,
+  const bellProps = { role: profile.role, items: notif.items,
     loading: notif.loading, error: notif.error, onRetry: notif.reload, onMarkRead: notif.markRead };
 
   return (

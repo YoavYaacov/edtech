@@ -136,6 +136,6 @@ export async function fetchReviewQueue() {
       total: ordered.length,
       firstPendingIndex: Math.max(ordered.findIndex((x) => g.pendingAqIds.includes(x.id)), 0),
     };
-  }).sort((x, y) => (x.oldest < y.oldest ? -1 : 1)); // oldest waiting first
+  }).sort((x, y) => (x.oldest < y.oldest ? 1 : -1)); // Round 6, section I.2: most recently pending first
   return { data, error: null };
 }

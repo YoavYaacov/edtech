@@ -84,7 +84,15 @@ function ReviewView({ data, reload, flash, setFlash }) {
   // opened for a student (e.g. from the queue) without a question → that student's first pending question
   const firstPendingOfStudent = pairs.find((p) => p.sid === studentId && isPending(p));
   const qi = Math.min(Math.max(Number(params.get('q') ?? ((firstPendingOfStudent?.qi ?? 0) + 1)) - 1, 0), Math.max(questions.length - 1, 0));
-  const go = (sid, index) => { setNextMsg(''); setFlash(''); setParams({ student: sid, q: String(index + 1) }); };
+  // Round 6, section G: the two prev/next question buttons (only those two —
+  // the student selector and question chips keep their current scroll
+  // position) scroll back to the top after navigating, since the grid below
+  // keeps its scroll offset across a param change otherwise and can land the
+  // teacher mid/end of the new question instead of its start.
+  const go = (sid, index, opts = {}) => {
+    setNextMsg(''); setFlash(''); setParams({ student: sid, q: String(index + 1) });
+    if (opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   function goNextPending() {
     const cur = pairs.findIndex((p) => p.sid === studentId && p.qi === qi);
@@ -171,21 +179,6 @@ function ReviewView({ data, reload, flash, setFlash }) {
       {nextMsg && <p className={styles.info} role="status">{nextMsg}</p>}
       {conflict && <p className={styles.warning} role="alert">{conflict}</p>}
 
-      {totalPending > 0 && (
-        <div className={styles.sendBox}>
-          <span className={allSendable ? styles.readyOk : styles.readyNo} role="status">
-            {allSendable ? <CheckCircle2 size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />}
-            {rl.sendReadiness(readyCount, totalPending)}
-          </span>
-          {blockedCount > 0 && (
-            <p className={styles.warning} role="alert">{rl.sendBlockedClosed(blockedCount)}</p>
-          )}
-          <Button icon={Send} onClick={askSend} disabled={!allSendable || sendBusy} loading={sendBusy}>
-            {rl.sendButton(student.full_name)}
-          </Button>
-        </div>
-      )}
-
       <nav className={styles.navBar} aria-label={t.title}>
         <div className={styles.studentSelect}>
           <Select label={t.student} value={student.id} onChange={(e) => go(e.target.value, qi)}
@@ -217,16 +210,34 @@ function ReviewView({ data, reload, flash, setFlash }) {
             onConflict={(reason) => { setConflict(`${t.conflict}${reason ? ` (${reason})` : ''}`); reload(); }} />
           <div className={styles.navRow}>
             {qi > 0 ? (
-              <Button variant="secondary" icon={ChevronRight} onClick={() => go(student.id, qi - 1)}>{t.prevQuestion}</Button>
+              <Button variant="secondary" icon={ChevronRight} onClick={() => go(student.id, qi - 1, { scrollTop: true })}>{t.prevQuestion}</Button>
             ) : <span />}
             {qi < questions.length - 1 && (
-              <Button variant="secondary" onClick={() => go(student.id, qi + 1)}>
+              <Button variant="secondary" onClick={() => go(student.id, qi + 1, { scrollTop: true })}>
                 {t.nextQuestion}<ChevronLeft size={18} aria-hidden="true" />
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Round 6, section F: the send box moves here, after the work area /
+          last question — the teacher works top-to-bottom and only wants to
+          send once done, with no need to scroll back up. */}
+      {totalPending > 0 && (
+        <div className={styles.sendBox}>
+          <span className={allSendable ? styles.readyOk : styles.readyNo} role="status">
+            {allSendable ? <CheckCircle2 size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />}
+            {rl.sendReadiness(readyCount, totalPending)}
+          </span>
+          {blockedCount > 0 && (
+            <p className={styles.warning} role="alert">{rl.sendBlockedClosed(blockedCount)}</p>
+          )}
+          <Button icon={Send} onClick={askSend} disabled={!allSendable || sendBusy} loading={sendBusy}>
+            {rl.sendButton(student.full_name)}
+          </Button>
+        </div>
+      )}
 
       {send && !send.error && (
         <ConfirmDialog open title={rl.sendConfirmTitle(send.studentName, send.count)}

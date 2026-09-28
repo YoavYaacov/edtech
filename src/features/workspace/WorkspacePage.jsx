@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Clock, Eye, Lightbulb, Lock, Pencil, Send } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -74,6 +74,49 @@ function WorkspaceView({ data }) {
 
   const patchAnswer = (id, patch) => setAnswers((m) => ({ ...m, [id]: { ...(m[id] ?? {}), ...patch } }));
 
+  // Round 6, section B: submission is one assignment-level action, not one
+  // per question — writing/autosave (below, per question) is unchanged.
+  // "Ready to submit" = a draft (never-submitted, or reset to draft by a
+  // return-for-revision) with non-empty content; a closed assignment has
+  // nothing to submit. registerFlush per question lets the assignment-level
+  // action flush the latest keystrokes of every question it's about to
+  // submit, the same pattern ReviewPage/FeedbackForm already use for the
+  // Student × Assignment "send feedback" action.
+  const flushRefs = useRef({}); // aqId → flush()
+  const [submitState, setSubmitState] = useState(null); // { confirming, ids, count, busy, error }
+  const [submitFlash, setSubmitFlash] = useState('');
+  const submittableIds = closed ? [] : questions
+    .filter((q) => { const a = answers[q.id]; return a && a.status === 'draft' && a.content?.trim(); })
+    .map((q) => q.id);
+
+  function askSubmitAssignment() {
+    setSubmitFlash('');
+    setSubmitState({ confirming: true, ids: submittableIds, count: submittableIds.length });
+  }
+
+  async function confirmSubmitAssignment() {
+    setSubmitState((s) => ({ ...s, busy: true }));
+    const failedIds = [];
+    for (const aqId of submitState.ids) {
+      await flushRefs.current[aqId]?.();
+      const { data: res, error: err } = await submitAnswer(aqId);
+      // A retry after a partial failure calls this again with a fresh
+      // submittableIds list; if a question happened to already make it
+      // through on a previous pass, submit_answer safely no-ops (ok:false,
+      // reason:'already_submitted') rather than erroring — treated as
+      // success here, never as a real failure.
+      if (err || (!res.ok && res.reason !== 'already_submitted')) { failedIds.push(aqId); continue; }
+      patchAnswer(aqId, { status: 'submitted', submitted_at: new Date().toISOString() });
+      setReviews((m) => ({ ...m, [aqId]: { attempts: (m[aqId]?.attempts ?? 0) + 1, feedback: null } }));
+    }
+    if (failedIds.length) {
+      setSubmitState({ error: t.submitAssignmentPartialError });
+    } else {
+      setSubmitState(null);
+      setSubmitFlash(t.submitAssignmentDone);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <Link to="/student" className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{t.back}</Link>
@@ -135,10 +178,7 @@ function WorkspaceView({ data }) {
             <AnswerEditor key={aq.id} aq={aq} answer={answers[aq.id]} closed={closed} review={reviews[aq.id]}
               onChange={(content) => patchAnswer(aq.id, { content })}
               onSaved={(content) => patchAnswer(aq.id, { serverContent: content, exists: true })}
-              onSubmitted={(submitted_at) => {
-                patchAnswer(aq.id, { status: 'submitted', submitted_at });
-                setReviews((m) => ({ ...m, [aq.id]: { attempts: (m[aq.id]?.attempts ?? 0) + 1, feedback: null } }));
-              }} />
+              registerFlush={(f) => { flushRefs.current[aq.id] = f; }} />
 
           </main>
 
@@ -165,11 +205,36 @@ function WorkspaceView({ data }) {
           </Button>
         </div>
       )}
+
+      {/* Round 6, section B: one central, assignment-level submit action, at
+          the end of the page regardless of which question is currently open —
+          writing/saving stays per question (autosave above); this is the only
+          action that counts as "submission" UX-wise. */}
+      {submittableIds.length > 0 && (
+        <div className={styles.submitBox}>
+          <span className={styles.readyOk} role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {t.submitAssignmentReadiness(submittableIds.length, n)}
+          </span>
+          <Button icon={Send} onClick={askSubmitAssignment}>{t.submitAssignmentButton}</Button>
+        </div>
+      )}
+      {submitFlash && <p className={styles.success} role="status">{submitFlash}</p>}
+
+      {submitState?.confirming && (
+        <ConfirmDialog open busy={submitState.busy} title={t.submitAssignmentTitle} body={t.submitAssignmentBody(submitState.count)}
+          confirmLabel={submitState.busy ? t.submitAssignmentSending : t.submitAssignmentAction}
+          onConfirm={confirmSubmitAssignment} onCancel={() => setSubmitState(null)} />
+      )}
+      {submitState?.error && (
+        <ConfirmDialog open title={t.submitAssignmentTitle} body={submitState.error} confirmLabel={null}
+          onCancel={() => setSubmitState(null)} />
+      )}
     </div>
   );
 }
 
-function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, onSubmitted }) {
+function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, registerFlush }) {
   const submitted = answer?.status === 'submitted';
   const readOnly = submitted || closed;
   const isCode = aq.question_type === 'code';
@@ -177,9 +242,6 @@ function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, onSubmitt
   const initial = answer?.content ?? (isCode ? aq.starter_code ?? '' : '');
   const serverValue = answer?.serverContent ?? initial;
   const [value, setValue] = useState(initial);
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
 
   const { status, savedAt, flush } = useAutosave({
     value, serverValue, enabled: !readOnly,
@@ -187,20 +249,14 @@ function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, onSubmitt
     onSaved: (v) => onSaved(v),
   });
 
-  function change(v) { setValue(v); onChange(v); setError(''); }
+  // the assignment-level submit action can flush this question's latest
+  // keystrokes before submitting it (Round 6, section B).
+  useEffect(() => {
+    registerFlush?.(flush);
+    return () => registerFlush?.(null);
+  }, [flush, registerFlush]);
 
-  async function submit() {
-    setBusy(true);
-    setError('');
-    const saved = await flush();
-    if (!saved) { setBusy(false); setConfirming(false); return setError(errors.generic); }
-    const { data, error: err } = await submitAnswer(aq.id);
-    setBusy(false);
-    setConfirming(false);
-    if (err) return setError(errors.generic);
-    if (!data.ok) return setError(data.reason === 'empty' ? t.submitEmpty : errors.generic);
-    onSubmitted(new Date().toISOString());
-  }
+  function change(v) { setValue(v); onChange(v); }
 
   const saveText = status === 'saved' && savedAt ? t.save.saved(formatTime(savedAt)) : t.save[status] ?? '';
 
@@ -228,19 +284,6 @@ function AnswerEditor({ aq, answer, closed, review, onChange, onSaved, onSubmitt
         <textarea className={styles.textAnswer} value={value} rows={10} readOnly={readOnly}
           placeholder={t.answerPlaceholder} aria-label={t.yourAnswer} onChange={(e) => change(e.target.value)} />
       )}
-
-      {error && <p className={styles.error} role="alert">{error}</p>}
-
-      {!readOnly && (
-        <div className={styles.submitRow}>
-          <Button icon={Send} onClick={() => setConfirming(true)} disabled={!value.trim() || busy}>
-            {review?.attempts ? sf.resubmit(review.attempts + 1) : t.submit}
-          </Button>
-        </div>
-      )}
-      <ConfirmDialog open={confirming} title={t.submitTitle} body={t.submitBody}
-        confirmLabel={busy ? t.submitting : t.submit} busy={busy}
-        onConfirm={submit} onCancel={() => setConfirming(false)} />
     </section>
   );
 }

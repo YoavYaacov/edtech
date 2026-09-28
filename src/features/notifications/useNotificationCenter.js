@@ -45,8 +45,7 @@ export function useNotificationCenter(role) {
   }
 
   return {
-    pending: q.data?.pending ?? [],
-    events: q.data?.events ?? [],
+    items: q.data?.items ?? [],
     loading: q.status === 'loading',
     error: q.status === 'error',
     reload: q.reload,

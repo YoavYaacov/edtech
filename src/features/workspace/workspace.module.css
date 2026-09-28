@@ -95,3 +95,17 @@
 .feedbackCard[data-verdict='incorrect'] { border-inline-start-color: var(--rose-700); }
 .feedbackHead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .feedbackVerdict { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+
+/* Round 6, section B: one assignment-level submit action, at the end of the
+   page (below the prev/next question nav) — same box shape as review's own
+   .sendBox, so the "readiness line + one button" pattern reads the same way
+   in both places. */
+.submitBox {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.readyOk, .readyNo { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 500; }
+.readyOk { color: var(--success); }
+.readyNo { color: var(--peach-700); }
+.success { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--success-tint); color: var(--success); font-weight: 500; }

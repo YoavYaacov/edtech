@@ -486,6 +486,23 @@ export const workspace = {
   submitBody: 'אחרי ההגשה אי אפשר לשנות את התשובה. המורה יראה אותה כפי שהיא.',
   submitted: (t) => `הוגש ב-${t}`,
   submitEmpty: 'אי אפשר להגיש תשובה ריקה.',
+  // Round 6, section B: submission is now ONE assignment-level action, not
+  // one per question (writing/autosave stays per question, unchanged).
+  // submit/submitting/submitTitle/submitBody above described the old
+  // per-question confirm dialog and are no longer referenced from the UI —
+  // kept rather than deleted, same as other now-unused strings in this file.
+  submitAssignmentButton: 'שליחת המטלה לבדיקה',
+  // ready = questions with a non-empty draft right now; total = all questions
+  // in the assignment (mirrors release.sendReadiness's own wording/shape).
+  submitAssignmentReadiness: (ready, total) => `${ready} מתוך ${total} שאלות מוכנות להגשה`,
+  submitAssignmentTitle: 'לשלוח את המטלה לבדיקה?',
+  submitAssignmentBody: (n) => (n === 1
+    ? 'שאלה אחת תישלח לבדיקה. אחרי ההגשה אי אפשר לשנות אותה.'
+    : `${n} שאלות יישלחו לבדיקה בבת אחת. אחרי ההגשה אי אפשר לשנות אותן.`),
+  submitAssignmentAction: 'שליחה לבדיקה',
+  submitAssignmentSending: 'שולחים…',
+  submitAssignmentDone: 'נשלח בהצלחה לבדיקה.',
+  submitAssignmentPartialError: 'חלק מהשאלות לא נשלחו (תקלת תקשורת). אפשר ללחוץ שוב על השליחה — שאלות שכבר נשלחו לא יישלחו פעמיים.',
   hints: 'רמזים',
   hintN: (n) => `רמז ${n}`,
   revealHint: (n, total) => `הצגת רמז ${n} מתוך ${total}`,
@@ -569,9 +586,9 @@ export const review = {
   solutionNotSeen: 'התלמיד לא צפה בפתרון',
   // form
   feedbackTitle: 'משוב',
-  verdict: 'פסק דין',
+  verdict: 'משוב', // Round 6, section D: "פסק דין" is too harsh a term for a learning tool; UI text only, DB column `verdict` is unchanged
   message: 'הודעה לתלמיד',
-  messageHint: 'התלמיד יראה את ההודעה ואת פסק הדין אחרי השחרור. אפשר להשתמש ב-Markdown ובנוסחאות.',
+  messageHint: 'התלמיד יראה את ההודעה ואת המשוב אחרי השחרור. אפשר להשתמש ב-Markdown ובנוסחאות.',
   previewToggle: 'תצוגה כפי שהתלמיד יראה',
   privateNote: 'הערה פרטית למורה',
   privateNoteHint: 'לא מוצגת לתלמיד בשום מצב.',
@@ -583,8 +600,8 @@ export const review = {
   returnIntentHint: 'ההחזרה תתבצע בזמן שחרור המשוב.',
   solutionSeenWarning: 'התלמיד כבר צפה בפתרון לשאלה זו.',
   ready: 'מוכן לשחרור',
-  missingVerdict: 'חסר פסק דין',
-  missingMessage: 'חסרה הודעה לתלמיד (חובה לכל פסק דין שאינו "נכון")',
+  missingVerdict: 'חסר משוב',
+  missingMessage: 'חסרה הודעה לתלמיד (חובה לכל משוב שאינו "נכון")',
   releaseLater: 'שחרור המשוב לתלמיד יתווסף בשלב הבא. כרגע נשמרת טיוטה בלבד, והתלמיד לא רואה אותה.',
   saveDraft: 'שמירת טיוטה',
   released: (when) => `המשוב שוחרר לתלמיד ב-${when} ואינו ניתן לשינוי.`,
@@ -608,7 +625,7 @@ export const formatRelativeDay = (iso) => {
 
 export const reviewQueue = {
   title: 'ממתינות לבדיקה',
-  subtitle: 'מטלות שתלמידים הגישו וממתינות לבדיקה שלך. הוותיקות ביותר ראשונות.',
+  subtitle: 'מטלות שתלמידים הגישו וממתינות לבדיקה שלך. ההגשות האחרונות ראשונות.',
   submitted: (when) => `הוגש ${when}`,
   pendingOf: (p, total) => (p === 1 ? `שאלה אחת ממתינה מתוך ${total}` : `${p} שאלות ממתינות מתוך ${total}`),
   drafts: (n) => (n === 1 ? 'טיוטת משוב אחת' : `${n} טיוטות משוב`),
@@ -622,7 +639,7 @@ export const release = {
   release: 'שחרור משוב',
   releaseAndReturn: 'שחרור והחזרה לניסיון נוסף',
   confirmTitle: 'לשחרר את המשוב לתלמיד?',
-  confirmBody: 'התלמיד יראה את פסק הדין ואת ההודעה. אחרי השחרור המשוב קבוע ואי אפשר לערוך אותו.',
+  confirmBody: 'התלמיד יראה את המשוב ואת ההודעה. אחרי השחרור המשוב קבוע ואי אפשר לערוך אותו.',
   confirmReturn: 'השאלה תיפתח לתלמיד לניסיון נוסף, עם התשובה הקודמת שלו כנקודת התחלה.',
   released: 'המשוב שוחרר לתלמיד.',
   releasedAndReturned: 'המשוב שוחרר, והשאלה הוחזרה לתלמיד לניסיון נוסף.',
@@ -673,7 +690,7 @@ export const release = {
 // Student side — minimal display needed to complete the step-4 flow
 export const studentFeedback = {
   title: 'משוב מהמורה',
-  verdict: 'פסק דין',
+  verdict: 'משוב', // Round 6, section D — see review.verdict above
   reviewed: (v) => `נבדק: ${v}`,
   returnedBanner: (n) => `הוחזר לתיקון – ניסיון ${n}. קראו את המשוב, תקנו והגישו שוב.`,
   resubmit: (n) => `הגשה חוזרת (ניסיון ${n})`,
@@ -685,7 +702,10 @@ export const studentFeedback = {
 // ---------------------------------------------------------------------
 export const notifications = {
   bell: 'התראות',
-  bellWithCount: (n) => `התראות, ${n} דורשים טיפול`,
+  // Round 6: the count can include a purely-informational row (student's
+  // "התקבל משוב חדש") alongside actionable ones, so the wording is now
+  // role-neutral rather than "דורשים טיפול" for all of them.
+  bellWithCount: (n) => `התראות, ${n} פריטים`,
   panelTitle: 'התראות',
   pendingSection: 'דורש טיפול',
   newSection: 'חדש',
@@ -708,6 +728,6 @@ export const notifications = {
   // principle this round): no question names anywhere, on either list.
   pendingStudentStatus: 'הוחזרה לתיקון',
   eventSubmissionReceived: (student) => `הגשה חדשה${student ? ` (${student})` : ''}`, // teacher's rare unmatched leftover only
-  eventFeedbackAvailable: 'התקבל משוב',
+  eventFeedbackAvailable: 'התקבל משוב חדש',
   eventReturnedForRevision: 'הוחזר לתיקון', // rare unmatched leftover fallback only — see notificationsApi.reconcile()
 };

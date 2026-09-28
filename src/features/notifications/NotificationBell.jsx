@@ -10,12 +10,16 @@ import styles from './notifications.module.css';
 // sidebar + mobile topbar; the inactive one is CSS-hidden, not unmounted).
 // Each mount keeps its own open/closed state, which is what we want: opening
 // the bell in one layout should not affect the other.
-export default function NotificationBell({ role, pending, events, loading, error, onRetry, onMarkRead }) {
+export default function NotificationBell({ role, items, loading, error, onRetry, onMarkRead }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   useClickOutside(wrapRef, () => setOpen(false), open);
 
-  const count = pending.length; // badge = "דורש טיפול" only (decision 76/78); never the unread event count
+  // Round 6: badge = the unified list's own length — every row shown is
+  // "currently relevant" by the list's own definition, so this is also the
+  // count of dots that can be showing (see notificationsApi for the full
+  // reasoning and the bug this replaces).
+  const count = items.length;
 
   // Bug-fix round (decision 87): opening the panel always forces a fresh
   // fetch, on top of the existing mount/focus/navigation refresh policy.
@@ -47,8 +51,7 @@ export default function NotificationBell({ role, pending, events, loading, error
       {open && (
         <NotificationPanel
           role={role}
-          pending={pending}
-          events={events}
+          items={items}
           loading={loading}
           error={error}
           onRetry={onRetry}

@@ -87,11 +87,17 @@ export default function AssignmentPage() {
     <>
       <Link to="/teacher/assignments" className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.assignments}</Link>
       <PageHeader title={a.title} subtitle={a.course?.title} />
+      {/* Round 6, section H: "פרסום מטלה" moves to the bottom of the form (after
+          details/questions/students, right before this same status area's own
+          confirm dialog) — the teacher fills the form top-to-bottom and
+          publishes only once done, not at the very top before anything is
+          filled in. The status badge and the other lifecycle actions
+          (delete/unpublish/close/reopen), which act on an assignment that
+          already exists rather than finish building a new one, stay here. */}
       <div className={styles.statusBar}>
         <Badge tone={statusTone[a.status]}>{AL.status[a.status]}</Badge>
         <div className={styles.actionsRow}>
           {isDraft && <Button variant="dangerGhost" icon={Trash2} onClick={() => setAction('delete')}>{t.deleteDraft}</Button>}
-          {isDraft && <Button icon={Send} title={t.lifecycleHelp.draft} onClick={() => setAction('publish')}>{t.publish}</Button>}
           {a.status === 'published' && <Button variant="ghost" icon={RotateCcw} title={t.lifecycleHelp.unpublish}
             onClick={() => setAction('unpublish')}>{t.unpublish}</Button>}
           {a.status === 'published' && <Button variant="secondary" icon={XCircle} title={t.lifecycleHelp.close}
@@ -101,7 +107,6 @@ export default function AssignmentPage() {
         </div>
       </div>
       <ul className={styles.lifecycleHelp}>
-        {isDraft && <li>{t.lifecycleHelp.draft}</li>}
         {a.status === 'published' && <li>{t.lifecycleHelp.close}</li>}
         {a.status === 'published' && <li>{t.lifecycleHelp.unpublish}</li>}
         {a.status === 'closed' && <li>{t.lifecycleHelp.reopen}</li>}
@@ -127,6 +132,15 @@ export default function AssignmentPage() {
 
       {!isDraft && qQ.status === 'ready' && rQ.status === 'ready' && (
         <ProgressPanel questions={qQ.data.map((x) => ({ ...x, title: x.title ?? x.question?.title }))} students={students} assignmentId={a.id} />
+      )}
+
+      {isDraft && (
+        <div className={styles.panel}>
+          <p className={styles.muted}>{t.lifecycleHelp.draft}</p>
+          <div className={styles.actionsRow}>
+            <Button icon={Send} onClick={() => setAction('publish')}>{t.publish}</Button>
+          </div>
+        </div>
       )}
 
       {action && (

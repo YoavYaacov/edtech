@@ -162,14 +162,23 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
       )}
 
       {actionError && <p className={styles.warning} role="alert">{actionError}</p>}
-      <div className={styles.formActions}>
-        <Button variant="secondary" icon={Save} onClick={() => flush()} disabled={status === 'saving' || busy}>{mode === 'draft' ? t.saveDraft : common.save}</Button>
-        {canLateReturn && (
-          <Button variant="secondary" icon={RotateCcw} onClick={() => { setActionError(''); setConfirm(true); }} disabled={busy}>
-            {rl.lateReturn}
-          </Button>
-        )}
-      </div>
+      {/* Round 6 (decision 101+, section C): the manual "שמירת טיוטה" button is
+          gone in draft mode — Production proved the same useAutosave mechanism
+          above already saves reliably across question/app navigation and
+          refresh, with its own "נשמר HH:MM" indicator, so a manual flush button
+          added nothing. Kept here only in metadata mode (editing the private
+          note/tags of already-released feedback), a less-tested flow the user
+          did not ask to change. */}
+      {mode === 'metadata' && (
+        <div className={styles.formActions}>
+          <Button variant="secondary" icon={Save} onClick={() => flush()} disabled={status === 'saving' || busy}>{common.save}</Button>
+          {canLateReturn && (
+            <Button variant="secondary" icon={RotateCcw} onClick={() => { setActionError(''); setConfirm(true); }} disabled={busy}>
+              {rl.lateReturn}
+            </Button>
+          )}
+        </div>
+      )}
 
       {confirm && (
         <ConfirmDialog open busy={busy} onConfirm={doReturn} onCancel={() => setConfirm(false)}
