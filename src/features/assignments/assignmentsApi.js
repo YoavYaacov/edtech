@@ -11,9 +11,23 @@ export function fetchAssignments() {
     .order('created_at', { ascending: false });
 }
 
+// Round 6 Production fix (section 7): a brand-new assignment starts with a
+// due date one week out at 23:59 local time, and a default instructions
+// text — both are plain, editable/removable initial values on the row
+// itself (due_at/instructions_md are already client-insertable columns; no
+// RPC or migration involved), never recomputed when an existing assignment
+// is later edited, since that code path (updateAssignment) never touches
+// this function at all.
+const DEFAULT_INSTRUCTIONS_MD = 'בהצלחה! 😊 אם משהו לא ברור, תמיד אפשר להתייעץ איתי ולשלוח לי הודעה בוואטסאפ.';
+function defaultDueAt() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  d.setHours(23, 59, 0, 0);
+  return d.toISOString();
+}
 export function createAssignment(ownerId, { courseId, title }) {
   return supabase.from('assignments')
-    .insert({ owner_id: ownerId, course_id: courseId, title })
+    .insert({ owner_id: ownerId, course_id: courseId, title, due_at: defaultDueAt(), instructions_md: DEFAULT_INSTRUCTIONS_MD })
     .select('id').single();
 }
 

@@ -45,8 +45,12 @@ function initialForms(data) {
   for (const s of data.submissions) {
     const f = s.feedback;
     forms[s.id] = {
+      // ret is derived from verdict alone (Round 6 Production fix, section 6:
+      // "לתיקון" IS the decision to return) — recomputed here too, not read
+      // from f.return_for_revision, so a draft saved before this change
+      // self-corrects the moment it's reopened rather than staying stale.
       values: {
-        verdict: f?.verdict ?? '', message: f?.message_md ?? '', ret: f?.return_for_revision ?? false,
+        verdict: f?.verdict ?? '', message: f?.message_md ?? '', ret: f?.verdict === 'needs_fix',
         note: f ? notes.get(f.id) ?? '' : '',
         tags: data.marks.filter((m) => m.submission_id === s.id).map((m) => m.mistake_tag_id),
       },

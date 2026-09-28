@@ -107,7 +107,13 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
         <>
           <div className={styles.field}>
             <span className={styles.fieldLabel}>{t.verdict}</span>
-            <VerdictPicker value={v.verdict} onChange={(verdict) => set({ verdict })} label={t.verdict} />
+            {/* Round 6 Production fix (section 6): "לתיקון" is now itself the
+                decision to return the question for another attempt — there is
+                no longer a second, separate checkbox. ret is derived from the
+                verdict alone, in this one place, so it can never drift out of
+                sync with it (including for a draft loaded from a previous
+                session — see ReviewPage.initialForms). */}
+            <VerdictPicker value={v.verdict} onChange={(verdict) => set({ verdict, ret: verdict === 'needs_fix' })} label={t.verdict} />
           </div>
           <MarkdownField label={t.message} hint={t.messageHint} rows={5} value={v.message}
             onChange={(e) => set({ message: e.target.value })} />
@@ -144,13 +150,10 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
 
       {mode === 'draft' && (
         <>
-          <label className={styles.returnBox}>
-            <input type="checkbox" checked={v.ret} onChange={(e) => set({ ret: e.target.checked })} />
-            <span>
-              <strong>{t.returnIntent}</strong>
-              <span className={styles.muted}> – {t.returnIntentHint}</span>
-            </span>
-          </label>
+          {/* Round 6 Production fix (section 6): no more independent "להחזיר
+              לתלמיד" checkbox — a plain, non-interactive note explains what
+              choosing "לתיקון" already does, above, on its own. */}
+          {v.verdict === 'needs_fix' && <p className={styles.muted}>{t.needsFixReturnNote}</p>}
           {v.ret && solutionSeen && (
             <p className={styles.warning} role="alert"><AlertTriangle size={16} aria-hidden="true" /> {t.solutionSeenWarning}</p>
           )}

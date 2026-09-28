@@ -492,9 +492,13 @@ export const workspace = {
   // per-question confirm dialog and are no longer referenced from the UI —
   // kept rather than deleted, same as other now-unused strings in this file.
   submitAssignmentButton: 'שליחת המטלה לבדיקה',
-  // ready = questions with a non-empty draft right now; total = all questions
-  // in the assignment (mirrors release.sendReadiness's own wording/shape).
+  // ready/total = answered/total among the NOT-yet-submitted questions only
+  // (mirrors release.sendReadiness's own wording/shape). Production fix:
+  // the box itself is now always shown (never absent) — see the two strings
+  // below for its other two states.
   submitAssignmentReadiness: (ready, total) => `${ready} מתוך ${total} שאלות מוכנות להגשה`,
+  submitAssignmentNeedAll: 'כדי לשלוח לבדיקה, יש לענות על כל שאלות המטלה.',
+  submitAssignmentAllSent: 'כל שאלות המטלה נשלחו לבדיקה.',
   submitAssignmentTitle: 'לשלוח את המטלה לבדיקה?',
   submitAssignmentBody: (n) => (n === 1
     ? 'שאלה אחת תישלח לבדיקה. אחרי ההגשה אי אפשר לשנות אותה.'
@@ -596,8 +600,11 @@ export const review = {
   tagsHint: 'כלי פנימי – לא מוצגות לתלמיד.',
   tagsEmpty: 'אין תגיות טעות בקורס. אפשר ליצור אותן בדף הקורס.',
   tagsGeneral: 'כללי בקורס',
-  returnIntent: 'להחזיר לתלמיד לניסיון נוסף',
-  returnIntentHint: 'ההחזרה תתבצע בזמן שחרור המשוב.',
+  returnIntent: 'להחזיר לתלמיד לניסיון נוסף', // unused since the Round 6 Production fix below — kept, not deleted
+  returnIntentHint: 'ההחזרה תתבצע בזמן שחרור המשוב.', // unused, same reason
+  // Round 6 Production fix (section 6): "לתיקון" now IS the decision to
+  // return the question — replaces the separate checkbox above.
+  needsFixReturnNote: 'משוב "לתיקון" יחזיר את השאלה לתלמיד לניסיון נוסף בעת השליחה.',
   solutionSeenWarning: 'התלמיד כבר צפה בפתרון לשאלה זו.',
   ready: 'מוכן לשחרור',
   missingVerdict: 'חסר משוב',
@@ -650,7 +657,7 @@ export const release = {
   notReadyHint: 'אפשר לשחרר רק משוב מוכן.',
   reasons: {
     not_ready: 'המשוב עדיין לא מוכן לשחרור.',
-    closed_no_return: 'המטלה סגורה, ולכן אי אפשר להחזיר לתיקון. פתחו את המטלה מחדש, או בטלו את סימון ההחזרה.',
+    closed_no_return: 'המטלה סגורה, ולכן אי אפשר להחזיר לתיקון כרגע. אפשר לפתוח את המטלה מחדש.',
     already_released: 'המשוב כבר שוחרר.',
     already_returned: 'השאלה כבר הוחזרה לתיקון.',
     not_latest: 'זה לא הניסיון האחרון של התלמיד.',

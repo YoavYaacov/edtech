@@ -16,6 +16,23 @@ import styles from './workspace.module.css';
 
 const answerState = (a) => (!a ? 'none' : a.status === 'submitted' ? 'submitted' : 'draft');
 
+// Round 6 Production fix (section 4): per-question-type readiness for the
+// assignment-level submit action, based on how the student actually answers
+// each type in this UI (code → CodeEditor seeded from starter_code; text and
+// tracing → the same plain textarea, no starter text) — never on whether the
+// verdict/content is "correct", only on whether the student did anything.
+// Line-ending/trailing-whitespace differences from starter_code alone must
+// not count as a real change (normalized before comparing).
+function normalizeCode(s) {
+  return (s ?? '').replace(/\r\n/g, '\n').trim();
+}
+export function isQuestionAnswered(q, answer) {
+  const content = answer?.content ?? '';
+  if (!content.trim()) return false; // nothing typed at all, regardless of type
+  if (q.question_type === 'code') return normalizeCode(content) !== normalizeCode(q.starter_code);
+  return true; // text / tracing: any non-empty content counts
+}
+
 // Loads the data, then mounts the view. The view builds its state from the
 // loaded data at creation time, so no render ever sees an empty answer map.
 // (Root cause of the autosave bug: the map used to be filled in a useEffect
@@ -70,7 +87,14 @@ function WorkspaceView({ data }) {
   const aq = questions[index];
   const closed = assignment.status === 'closed';
   const submittedCount = questions.filter((q) => answers[q.id]?.status === 'submitted').length;
-  const go = (i) => setParams({ q: String(i + 1) }, { replace: false });
+  // Round 6 Production fix (section 5): the two prev/next buttons below (only
+  // those two — the stepper's own question buttons keep their scroll
+  // position) scroll back to the top after navigating, matching the
+  // already-accepted behavior on the teacher's ReviewPage.
+  const go = (i, opts = {}) => {
+    setParams({ q: String(i + 1) }, { replace: false });
+    if (opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const patchAnswer = (id, patch) => setAnswers((m) => ({ ...m, [id]: { ...(m[id] ?? {}), ...patch } }));
 
@@ -85,9 +109,16 @@ function WorkspaceView({ data }) {
   const flushRefs = useRef({}); // aqId → flush()
   const [submitState, setSubmitState] = useState(null); // { confirming, ids, count, busy, error }
   const [submitFlash, setSubmitFlash] = useState('');
-  const submittableIds = closed ? [] : questions
-    .filter((q) => { const a = answers[q.id]; return a && a.status === 'draft' && a.content?.trim(); })
-    .map((q) => q.id);
+  // Production fix (section 3+4): the box must always render at the bottom of
+  // an open assignment — the earlier version rendered nothing at all whenever
+  // there was not yet at least one ready question, which is indistinguishable
+  // from "the button is missing". "Remaining" = not yet submitted (already-
+  // submitted questions are done and never block enabling); "answered" uses
+  // isQuestionAnswered above, per question type.
+  const remainingQuestions = closed ? [] : questions.filter((q) => answers[q.id]?.status !== 'submitted');
+  const answeredRemaining = remainingQuestions.filter((q) => isQuestionAnswered(q, answers[q.id]));
+  const allAnswered = remainingQuestions.length > 0 && answeredRemaining.length === remainingQuestions.length;
+  const submittableIds = answeredRemaining.map((q) => q.id);
 
   function askSubmitAssignment() {
     setSubmitFlash('');
@@ -199,24 +230,37 @@ function WorkspaceView({ data }) {
 
       {aq && (
         <div className={styles.navRow}>
-          <Button variant="secondary" icon={ChevronRight} disabled={index === 0} onClick={() => go(index - 1)}>{t.prev}</Button>
-          <Button variant="secondary" disabled={index >= n - 1} onClick={() => go(index + 1)}>
+          <Button variant="secondary" icon={ChevronRight} disabled={index === 0} onClick={() => go(index - 1, { scrollTop: true })}>{t.prev}</Button>
+          <Button variant="secondary" disabled={index >= n - 1} onClick={() => go(index + 1, { scrollTop: true })}>
             {t.next}<ChevronLeft size={18} aria-hidden="true" />
           </Button>
         </div>
       )}
 
-      {/* Round 6, section B: one central, assignment-level submit action, at
-          the end of the page regardless of which question is currently open —
+      {/* Round 6, section B (Production fix, sections 3+4): one central,
+          assignment-level submit action, always at the end of the page for an
+          open assignment, regardless of which question is currently open —
           writing/saving stays per question (autosave above); this is the only
-          action that counts as "submission" UX-wise. */}
-      {submittableIds.length > 0 && (
+          action that counts as "submission" UX-wise. Enabled only once every
+          remaining question is actually answered; otherwise shown disabled
+          with a short explanation, so the box itself is never simply absent. */}
+      {!closed && (
         <div className={styles.submitBox}>
-          <span className={styles.readyOk} role="status">
-            <CheckCircle2 size={16} aria-hidden="true" />
-            {t.submitAssignmentReadiness(submittableIds.length, n)}
-          </span>
-          <Button icon={Send} onClick={askSubmitAssignment}>{t.submitAssignmentButton}</Button>
+          {remainingQuestions.length === 0 ? (
+            <span className={styles.readyOk} role="status">
+              <CheckCircle2 size={16} aria-hidden="true" />
+              {t.submitAssignmentAllSent}
+            </span>
+          ) : (
+            <>
+              <span className={allAnswered ? styles.readyOk : styles.readyNo} role="status">
+                {allAnswered ? <CheckCircle2 size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />}
+                {t.submitAssignmentReadiness(answeredRemaining.length, remainingQuestions.length)}
+              </span>
+              <Button icon={Send} onClick={askSubmitAssignment} disabled={!allAnswered}>{t.submitAssignmentButton}</Button>
+              {!allAnswered && <p className={styles.muted}>{t.submitAssignmentNeedAll}</p>}
+            </>
+          )}
         </div>
       )}
       {submitFlash && <p className={styles.success} role="status">{submitFlash}</p>}
