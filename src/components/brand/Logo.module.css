@@ -1,20 +1,27 @@
-.logo { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; color: var(--text); }
-.node {
+/* "הבנתי" lockup. Master A proportions, expressed in em of the name's size:
+   symbol height 1.37em · symbol→name 0.257em (stacked) / 0.4em (horizontal)
+   · name→slogan 0.086em · slogan 0.30em · tracking -0.005em (name), +0.02em (slogan).
+   Colors are scoped to the logo on purpose (they are brand colors, not UI tokens). */
+.logo {
+  --logo-ink: #0e2250;
+  --logo-soft: #5e6d8e;
   display: inline-flex;
-  direction: ltr;
-  border: 2px solid var(--lavender-700);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--lavender-50);
+  color: var(--logo-ink);
+  font-family: var(--font-ui);
 }
-.value { width: 16px; height: 18px; }
-.next {
-  width: 12px; height: 18px;
-  border-inline-start: 2px solid var(--lavender-700);
-  display: grid; place-items: center;
+.compact { flex-direction: row; align-items: center; gap: 0.4em; }
+.full { flex-direction: column; align-items: center; text-align: center; gap: 0.257em; align-self: flex-start; }
+
+.symbol { display: block; flex: none; height: 1.37em; width: auto; }
+.text { display: flex; flex-direction: column; align-items: center; gap: 0.0857em; }
+.word { font-weight: 700; line-height: 1.05; letter-spacing: -0.005em; white-space: nowrap; }
+.slogan {
+  font-size: 0.3em; font-weight: 400; line-height: 1.25; letter-spacing: 0.02em;
+  color: var(--logo-soft); white-space: nowrap;
 }
-.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--lavender-700); }
-.md .word { font-size: var(--fs-lg); }
-.lg .word { font-size: var(--fs-xl); }
-.lg .value { width: 22px; height: 24px; }
-.lg .next { width: 16px; height: 24px; }
+
+/* name font size per context */
+.sm { font-size: 19px; }  /* mobile header */
+.md { font-size: 24px; }  /* desktop sidebar */
+.lg { font-size: 44px; }  /* login */
+@media (max-width: 800px) { .lg { font-size: 36px; } }

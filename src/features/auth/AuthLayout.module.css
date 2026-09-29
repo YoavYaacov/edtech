@@ -14,7 +14,6 @@
     radial-gradient(circle at 15% 85%, var(--mint-50) 0 22%, transparent 23%),
     var(--sky-50);
 }
-.tagline { font-size: var(--fs-lg); color: var(--text-muted); max-width: 32ch; }
 .formPanel { display: grid; place-items: center; padding: var(--space-5); }
 .card {
   width: 100%;

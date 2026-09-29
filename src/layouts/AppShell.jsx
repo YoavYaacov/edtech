@@ -46,7 +46,7 @@ export default function AppShell({ items }) {
       </aside>
 
       <header className={styles.topbar}>
-        <Logo />
+        <Logo size="sm" />
         <div className={styles.topbarActions}>
           <NotificationBell {...bellProps} />
           <button type="button" className={styles.iconButton} onClick={signOut}

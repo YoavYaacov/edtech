@@ -2,8 +2,8 @@
 // To rename a term across the whole app, change it once in this file.
 
 export const app = {
-  name: 'חוליה',
-  tagline: 'מקום אחד לשיעורים, למטלות ולהתקדמות',
+  name: 'הבנתי',
+  tagline: 'עד שנופל האסימון',
 };
 
 // Curriculum terms: Hebrew in the UI, English only in code.

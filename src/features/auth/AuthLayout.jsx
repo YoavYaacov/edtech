@@ -1,14 +1,12 @@
 import Logo from '../../components/brand/Logo';
 import ListMotif from '../../components/brand/ListMotif';
-import { app } from '../../i18n/he';
 import styles from './AuthLayout.module.css';
 
 export default function AuthLayout({ title, children }) {
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel}>
-        <Logo size="lg" />
-        <p className={styles.tagline}>{app.tagline}</p>
+        <Logo variant="full" size="lg" />
         <ListMotif />
       </section>
       <section className={styles.formPanel}>
