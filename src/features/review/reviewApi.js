@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { getCachedAiReview, getInflightAiReview, startAiReview } from './aiReviewClient';
 
 const one = (x) => (Array.isArray(x) ? x[0] : x) ?? null; // 1:1 embeds
 
@@ -139,3 +140,9 @@ export async function fetchReviewQueue() {
   }).sort((x, y) => (x.oldest < y.oldest ? 1 : -1)); // Round 6, section I.2: most recently pending first
   return { data, error: null };
 }
+
+// ---------- Phase 6 / Round 1B: AI proposal (read-only helper) ----------
+// Calls the ai-review Edge Function with the teacher's existing Supabase session.
+// Body is { submission_id } only. Returns a proposal; it saves/releases/returns NOTHING.
+export const runAiReview = (submissionId) => startAiReview(supabase, submissionId);
+export { getCachedAiReview, getInflightAiReview };

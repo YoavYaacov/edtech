@@ -6,6 +6,7 @@ import TextArea from '../../components/ui/TextArea';
 import MarkdownField from '../../components/markdown/MarkdownField';
 import Markdown from '../../components/markdown/Markdown';
 import VerdictPicker from './VerdictPicker';
+import AiSuggestionCard from './AiSuggestionCard';
 import { useAutosave } from '../workspace/useAutosave';
 import { buildTree, flattenTree } from '../../lib/topicTree';
 import { returnForRevision, saveFeedbackDraft, saveFeedbackMetadata } from './reviewApi';
@@ -105,6 +106,12 @@ export default function FeedbackForm({ submission, initial, server, tags, topics
 
       {mode === 'draft' && (
         <>
+          {/* Phase 6 / Round 1B: AI proposes, the teacher decides. The card only offers explicit
+              "use" actions, which go through the very same set() the picker and the text field use
+              (so ret stays derived from the verdict exactly as below). It never saves or sends. */}
+          <AiSuggestionCard submissionId={submission.id} verdict={v.verdict} message={v.message}
+            onUseVerdict={(verdict) => set({ verdict, ret: verdict === 'needs_fix' })}
+            onUseMessage={(message) => set({ message })} />
           <div className={styles.field}>
             <span className={styles.fieldLabel}>{t.verdict}</span>
             {/* Round 6 Production fix (section 6): "לתיקון" is now itself the

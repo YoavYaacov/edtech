@@ -19,7 +19,8 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 7 | `20260925000100_feedback.sql` | 4 | yes (25.09.2026) |
 | 8 | `20260925000200_safe_delete_v2.sql` | 4 | yes (25.09.2026) |
 | 9 | `20260925000300_feedback_metadata.sql` | 4 | yes (25.09.2026) |
-| 10 | `20260926000100_notifications.sql` | 5 | pending |
+| 10 | `20260926000100_notifications.sql` | 5 | yes (per project doc) |
+| 11 | `20260929000100_ai_runs.sql` | 6 (Round 1A) | yes (29.09.2026, per owner report) |
 
 After running a migration, update this table and the project doc in the same commit.
 

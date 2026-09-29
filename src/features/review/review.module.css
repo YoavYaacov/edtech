@@ -107,3 +107,31 @@
 .queueBtn { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding-inline: var(--space-4);
   border-radius: var(--radius-md); background: var(--primary); color: #fff; font-weight: 500; }
 .queueBtn:hover { text-decoration: none; background: var(--primary-hover); }
+
+/* Phase 6 / Round 1B — AI suggestion card (proposal only; visually distinct from the real draft) */
+.aiCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md);
+  background: var(--lavender-50); border: 1.5px dashed var(--lavender-200); min-width: 0; }
+.aiHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.aiTitle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-md, 1rem); font-weight: 600; color: var(--primary); }
+.aiBadge { font-size: var(--fs-xs); color: var(--text-muted); }
+.aiRun { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.aiBody { display: flex; flex-direction: column; gap: var(--space-3); }
+.aiRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.aiLabel { font-size: var(--fs-sm); font-weight: 600; }
+.aiVerdict { display: inline-block; padding: 2px var(--space-3); border-radius: 999px; font-weight: 600; background: var(--surface); border: 1.5px solid var(--border); }
+.aiVerdict[data-verdict='correct'] { color: var(--mint-700); border-color: var(--mint-700); }
+.aiVerdict[data-verdict='partial'] { color: var(--sky-700); border-color: var(--sky-700); }
+.aiVerdict[data-verdict='needs_fix'] { color: var(--butter-700); border-color: var(--butter-700); }
+.aiVerdict[data-verdict='incorrect'] { color: var(--rose-700); border-color: var(--rose-700); }
+.aiSection { display: flex; flex-direction: column; gap: var(--space-2); }
+.aiQuote { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); }
+.aiChoice { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); }
+.aiAttention { display: flex; flex-direction: column; gap: 4px; padding: var(--space-3); border-radius: var(--radius-sm);
+  background: var(--peach-50); border: 1px solid var(--peach-200); color: var(--peach-700); font-size: var(--fs-sm); }
+.aiAttention ul, .aiNotes ul { margin: 0; padding-inline-start: 1.2em; }
+.aiNotes { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--text-muted); }
+.aiError { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); font-size: var(--fs-sm); }
+.aiError p { margin: 0; }
+
+/* Round 1B: the sticky form can now be taller than the viewport (AI card) — keep its bottom reachable on desktop */
+@media (min-width: 1001px) { .formCard { max-height: calc(100vh - var(--space-8, 2rem)); overflow-y: auto; } }
