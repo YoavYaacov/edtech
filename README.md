@@ -1,4 +1,4 @@
-# חוליה — EdTech for a private CS tutor
+# הבנתי — EdTech for a private CS tutor
 
 React (Vite) + Supabase (Postgres, Auth, RLS, Edge Functions). Hebrew RTL UI.
 The living project document (architecture, decisions, runbook, phase status) is the source of truth.
