@@ -138,5 +138,18 @@
     max-height: none;
     border-radius: 0;
     border: none;
+    /* keep the header and the last row clear of the notch / home indicator */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Mobile QA: comfortable touch targets (44px) and a readable badge. */
+  .bellButton { width: 44px; height: 44px; }
+  .closeBtn { width: 44px; height: 44px; }
+  .badge { min-width: 18px; height: 18px; top: 3px; font-size: 0.75rem; }
+  /* Scroll stays inside the list (no chaining to the page behind), and a long
+     unbroken word (e.g. an English assignment name) wraps instead of pushing
+     the list sideways. */
+  .panelBody { overscroll-behavior: contain; overflow-x: hidden; }
+  .itemText { flex: 1; }
+  .itemTitle, .itemMeta { overflow-wrap: anywhere; }
 }

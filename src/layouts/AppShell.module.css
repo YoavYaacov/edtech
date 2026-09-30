@@ -60,17 +60,28 @@
 @media (max-width: 800px) {
   .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
   .sidebar { display: none; }
+  /* z-index 20 (above the tab bar's 10): the notification panel is a
+     position: fixed full-screen surface rendered inside this header, so it
+     inherits the header's stacking level and must sit above the tab bar. */
   .topbar {
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 20;
     display: flex; align-items: center; justify-content: space-between;
     padding: var(--space-2) var(--space-4);
     padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid var(--border);
+  }
+  /* The translucent blurred background lives on a pseudo-element, NOT on the
+     header itself: backdrop-filter on the header would make it the containing
+     block of its position: fixed descendants, squeezing the notification
+     panel (top: 0; bottom: 0) into the 56px header instead of the viewport. */
+  .topbar::before {
+    content: ''; position: absolute; inset: 0 0 -1px; z-index: -1; /* -1px: also under the header's bottom border, like the old background */
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border);
   }
   .content { padding: var(--space-5) var(--space-4) var(--space-7); }
   .topbarActions { display: flex; align-items: center; gap: var(--space-1); }
+  .topbarActions .iconButton { width: 44px; height: 44px; } /* touch target */
   .tabbar {
     position: sticky; bottom: 0; z-index: 10;
     display: flex; justify-content: space-around;
