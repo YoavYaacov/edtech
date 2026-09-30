@@ -42,4 +42,14 @@ describe('branding guards', () => {
       expect(s).toContain(symbolPaths);
     }
   });
+
+  it('login doodles SVG: handwriting is outlined, only the app code-font stack remains as live text, no scripts, sane size', () => {
+    const s = read('assets/brand/hevanti-login-doodles.svg');
+    expect(s).not.toMatch(/Caveat|<script|<image|href=/);
+    const fams = new Set([...s.matchAll(/font-family="([^"]+)"/g)].map((m) => m[1]));
+    expect(fams.size).toBe(1);
+    expect([...fams][0]).toBe("'Cascadia Code',Consolas,SFMono-Regular,Menlo,'Courier New',monospace");
+    expect(s).toContain('viewBox="0 0 640 760"');
+    expect(s.length).toBeLessThan(120 * 1024);
+  });
 });

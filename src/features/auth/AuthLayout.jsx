@@ -1,13 +1,14 @@
 import Logo from '../../components/brand/Logo';
-import ListMotif from '../../components/brand/ListMotif';
+import doodlesUrl from '../../assets/brand/hevanti-login-doodles.svg';
 import styles from './AuthLayout.module.css';
 
 export default function AuthLayout({ title, children }) {
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel}>
+        {/* Decorative hand-drawn sketches (math + CS) scattered around the centred logo. */}
+        <img className={styles.doodles} src={doodlesUrl} alt="" aria-hidden="true" draggable="false" />
         <Logo variant="full" size="lg" />
-        <ListMotif />
       </section>
       <section className={styles.formPanel}>
         <div className={styles.card}>

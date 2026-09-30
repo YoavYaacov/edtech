@@ -10,7 +10,7 @@
   font-family: var(--font-ui);
 }
 .compact { flex-direction: row; align-items: center; gap: 0.4em; }
-.full { flex-direction: column; align-items: center; text-align: center; gap: 0.257em; align-self: flex-start; }
+.full { flex-direction: column; align-items: center; text-align: center; gap: 0.257em; }
 
 .symbol { display: block; flex: none; height: 1.37em; width: auto; }
 .text { display: flex; flex-direction: column; align-items: center; gap: 0.0857em; }
@@ -23,5 +23,5 @@
 /* name font size per context */
 .sm { font-size: 19px; }  /* mobile header */
 .md { font-size: 24px; }  /* desktop sidebar */
-.lg { font-size: 44px; }  /* login */
-@media (max-width: 800px) { .lg { font-size: 36px; } }
+.lg { font-size: 57px; }  /* login (44px x 1.3) */
+@media (max-width: 800px) { .lg { font-size: 47px; } } /* 36px x 1.3 */
