@@ -117,3 +117,10 @@ export async function fetchProgress(aqIds) {
 
 // Draft builder: which questions block publishing in this assignment's language, which recipients study another one.
 export const fetchAssignmentLanguageStatus = (id) => supabase.rpc('assignment_language_status', { p_assignment_id: id });
+
+// C3: clone an assignment into ANOTHER programming language of the course. Always a new DRAFT, no recipients, nothing of the source changes.
+// Preflight tells (without writing anything) whether every question has content in the target language.
+export const assignmentClonePreflight = (id, language) =>
+  supabase.rpc('assignment_clone_preflight', { p_source_id: id, p_target_language: language });
+export const cloneAssignmentToLanguage = (id, language, title) =>
+  supabase.rpc('clone_assignment_to_language', { p_source_id: id, p_target_language: language, p_title: title || null });

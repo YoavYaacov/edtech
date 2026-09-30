@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ChevronRight, Lock, Plus, RotateCcw, Send, Trash2, X, XCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, Copy, Lock, Plus, RotateCcw, Send, Trash2, X, XCircle } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -10,7 +10,9 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import MarkdownField from '../../components/markdown/MarkdownField';
 import ProgressPanel from './ProgressPanel';
-import { assignmentLanguage as alt } from '../../i18n/he';
+import CloneAssignmentDialog from './CloneAssignmentDialog';
+import { showToast } from '../../components/ui/Toast';
+import { assignmentLanguage as alt, cloneAssignment as cloneT } from '../../i18n/he';
 import { statusTone } from './AssignmentsPage';
 import {
   addAssignmentQuestion, addRecipient, deleteAssignment, fetchAssignment, fetchAssignmentQuestions, fetchRecipients,
@@ -50,6 +52,10 @@ export default function AssignmentPage() {
     [assignmentId, draftLang, aQ.data?.programming_language, qQ.data, rQ.data]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState({ kind: '', text: '' });
+  // An action that FAILED keeps its dialog open and explains why, inside the dialog (where the teacher is looking).
+  const [dialogError, setDialogError] = useState(null); // { text, items?, language? }
+  const [cloning, setCloning] = useState(false);
+  const inflight = useRef(false);
 
   if (aQ.status === 'loading') return <LoadingState />;
   if (aQ.status === 'error') return <ErrorState message={errors.generic} onRetry={aQ.reload} />;
@@ -59,25 +65,56 @@ export default function AssignmentPage() {
   const isDraft = a.status === 'draft';
   const reloadAll = () => { aQ.reload(); qQ.reload(); rQ.reload(); };
 
+  // Turns a failed call into the message shown in the dialog. Never throws.
+  function describeFailure(res, thrown) {
+    const E = t.actionErrors;
+    if (thrown) return { text: E.network };
+    if (res.error) {
+      const msg = String(res.error.message ?? '');
+      if (/failed to fetch|network|fetch failed|load failed/i.test(msg)) return { text: E.network };
+      return { text: E.server };
+    }
+    const d = res.data;
+    if (d?.reason === 'variants_missing') {
+      const items = Array.isArray(d.items) ? d.items : [];
+      const lang = langNames[a.programming_language] ?? a.programming_language ?? '';
+      return items.length
+        ? { text: E.variants_missing(lang, items.length), items, language: a.programming_language }
+        : { text: E.variants_missing_generic(lang) };
+    }
+    return { text: E[d?.reason] ?? t.reasons[d?.reason] ?? E.generic };
+  }
+
   async function runAction(kind = action) {
+    if (inflight.current) return; // double-click / duplicate submit guard: one request at a time
+    inflight.current = true;
     setBusy(true);
     setMessage({ kind: '', text: '' });
-    let res;
-    if (kind === 'publish') res = await publishAssignment(a.id);
-    else if (kind === 'unpublish') res = await unpublishAssignment(a.id);
-    else if (kind === 'close') res = await setAssignmentClosed(a.id, true);
-    else if (kind === 'reopen') res = await setAssignmentClosed(a.id, false);
-    else if (kind === 'delete') {
-      const { data, error } = await deleteAssignment(a.id);
-      setBusy(false); setAction(null);
-      if (error || !data?.length) return setMessage({ kind: 'error', text: errors.generic });
-      return navigate('/teacher/assignments', { replace: true });
-    }
+    setDialogError(null);
+    let res = null;
+    let thrown = false;
+    try {
+      if (kind === 'publish') res = await publishAssignment(a.id);
+      else if (kind === 'unpublish') res = await unpublishAssignment(a.id);
+      else if (kind === 'close') res = await setAssignmentClosed(a.id, true);
+      else if (kind === 'reopen') res = await setAssignmentClosed(a.id, false);
+      else if (kind === 'delete') res = await deleteAssignment(a.id);
+    } catch { thrown = true; }
+    inflight.current = false;
     setBusy(false);
+
+    // success is decided ONLY by the server's answer
+    const okDelete = kind === 'delete' && !thrown && !res?.error && res?.data?.length > 0;
+    const okRpc = kind !== 'delete' && !thrown && res && !res.error && res.data?.ok === true;
+    if (!okDelete && !okRpc) {
+      const failure = kind === 'delete' && !thrown && !res?.error ? { text: errors.generic } : describeFailure(res, thrown);
+      if (res?.data?.reason === 'variants_missing') langQ.reload();
+      if (kind === 'reopen') return setMessage({ kind: 'error', text: failure.text }); // no dialog for reopen
+      return setDialogError(failure); // dialog stays open, no success-looking UI
+    }
     setAction(null);
-    if (res.error) return setMessage({ kind: 'error', text: errors.generic });
-    if (!res.data.ok) { langQ.reload(); return setMessage({ kind: 'error', text: t.reasons[res.data.reason] ?? errors.generic }); }
-    if (kind === 'publish') setMessage({ kind: 'success', text: t.published });
+    if (kind === 'delete') return navigate('/teacher/assignments', { replace: true });
+    if (kind === 'publish') showToast(t.published);
     reloadAll();
     langQ.reload();
   }
@@ -106,11 +143,14 @@ export default function AssignmentPage() {
         <Badge tone={statusTone[a.status]}>{AL.status[a.status]}</Badge>
         {courseLanguageList(a.course).length > 1 && a.programming_language && <Badge tone="sky">{langNames[a.programming_language] ?? a.programming_language}</Badge>}
         <div className={styles.actionsRow}>
-          {isDraft && <Button variant="dangerGhost" icon={Trash2} onClick={() => setAction('delete')}>{t.deleteDraft}</Button>}
+          {a.programming_language && courseLanguageList(a.course).filter((l) => l !== a.programming_language).length > 0 && (
+            <Button variant="secondary" icon={Copy} onClick={() => setCloning(true)}>{cloneT.button}</Button>
+          )}
+          {isDraft && <Button variant="dangerGhost" icon={Trash2} onClick={() => { setDialogError(null); setAction('delete'); }}>{t.deleteDraft}</Button>}
           {a.status === 'published' && <Button variant="ghost" icon={RotateCcw} title={t.lifecycleHelp.unpublish}
-            onClick={() => setAction('unpublish')}>{t.unpublish}</Button>}
+            onClick={() => { setDialogError(null); setAction('unpublish'); }}>{t.unpublish}</Button>}
           {a.status === 'published' && <Button variant="secondary" icon={XCircle} title={t.lifecycleHelp.close}
-            onClick={() => setAction('close')}>{t.close}</Button>}
+            onClick={() => { setDialogError(null); setAction('close'); }}>{t.close}</Button>}
           {a.status === 'closed' && <Button variant="secondary" icon={RotateCcw} loading={busy} title={t.lifecycleHelp.reopen}
             onClick={() => runAction('reopen')}>{t.reopen}</Button>}
         </div>
@@ -153,15 +193,33 @@ export default function AssignmentPage() {
         <div className={styles.panel}>
           <p className={styles.muted}>{t.lifecycleHelp.draft}</p>
           <div className={styles.actionsRow}>
-            <Button icon={Send} onClick={() => setAction('publish')}>{t.publish}</Button>
+            <Button icon={Send} onClick={() => { setDialogError(null); setAction('publish'); }}>{t.publish}</Button>
           </div>
         </div>
       )}
 
       {action && (
         <ConfirmDialog open title={dialogs[action].title} body={dialogs[action].body} danger={dialogs[action].danger}
-          confirmLabel={dialogs[action].label} busy={busy} onConfirm={() => runAction(action)} onCancel={() => setAction(null)} />
+          confirmLabel={dialogs[action].label} busy={busy} onConfirm={() => runAction(action)}
+          onCancel={() => { if (!busy) { setAction(null); setDialogError(null); } }}>
+          {dialogError && (
+            <div className={`${styles.errorNote} ${styles.dialogError}`} role="alert">
+              <p>{dialogError.text}</p>
+              {dialogError.items && (
+                <ul>
+                  {dialogError.items.map((i) => (
+                    <li key={i.question_id}>
+                      <strong>{i.title}</strong>
+                      {i.kind === 'missing_variant' && <> <Link to={`/teacher/questions/${i.question_id}?variant=${dialogError.language}`}>{alt.createManual}</Link></>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </ConfirmDialog>
       )}
+      {cloning && <CloneAssignmentDialog assignment={a} languages={courseLanguageList(a.course)} onClose={() => setCloning(false)} />}
     </>
   );
 }

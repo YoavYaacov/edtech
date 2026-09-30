@@ -10,6 +10,7 @@
     "test:ai-review": "node --test \"supabase/tests/ai-review/*.test.ts\"",
     "test:ui": "vitest run",
     "test:edge": "node --test \"supabase/tests/invite-student/*.test.ts\" \"supabase/tests/delete-student/*.test.ts\"",
+    "test:ai-variant": "node --test \"supabase/tests/ai-variant/*.test.ts\"",
     "test:edge-boot": "node --test --test-concurrency=1 \"supabase/tests/edge-boot/*.test.ts\"",
     "build:edge": "node scripts/build-edge-bundles.mjs"
   },

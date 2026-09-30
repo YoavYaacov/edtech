@@ -26,6 +26,7 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 14 | `20260930000300_question_variants.sql` | Round C1 | NO - not applied in Production |
 | 15 | `20260930000400_language_resolution.sql` | Round C1 | NO - not applied in Production |
 | 16 | `20261001000100_course_sort_order.sql` | Acceptance fixes | NO - not applied in Production |
+| 17 | `20261002000100_ai_variants_and_clone.sql` | Phase 6 final round (C2 + C3) | NO - not applied in Production |
 
 Rows 12-15 are applied in Production (per owner report). Row 16 is new. Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
 Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls

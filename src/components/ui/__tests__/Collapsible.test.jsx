@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Collapsible from '../Collapsible';
 import { readOpen } from '../../../lib/useCollapsed';
@@ -43,5 +44,26 @@ describe('Collapsible', () => {
   it('hides closed content from assistive tech', () => {
     render(<Collapsible title="א" defaultOpen={false}><p>סוד</p></Collapsible>);
     expect(screen.getByRole('region', { hidden: true })).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('header action is a SIBLING of the toggle: clicking it never collapses, and the toggle stays the only aria-expanded control', () => {
+    const onAction = vi.fn();
+    render(<Collapsible title="תגיות" actions={<button type="button" onClick={onAction}>תגית חדשה</button>} defaultOpen><p>x</p></Collapsible>);
+    const toggle = screen.getByRole('button', { name: /תגיות/ });
+    fireEvent.click(screen.getByRole('button', { name: 'תגית חדשה' }));
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle.contains(screen.getByRole('button', { name: 'תגית חדשה' }))).toBe(false);
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('CSS guard: a header with actions is a one-row grid with both columns centred (no wrapping row)', () => {
+    const css = readFileSync('src/components/ui/Collapsible.module.css', 'utf8');
+    const rule = css.match(/\.hasActions \{[^}]*\}/)[0];
+    expect(rule).toMatch(/display:\s*grid/);
+    expect(rule).toMatch(/align-items:\s*center/);
+    expect(rule).not.toMatch(/flex-wrap/);
+    expect(css).toMatch(/\.hasActions \.actions \{[^}]*align-self:\s*center/);
   });
 });

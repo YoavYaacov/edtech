@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DENO = spawnSync(join(ROOT, "node_modules/.bin/deno"), ["--version"]).status === 0 ? join(ROOT, "node_modules/.bin/deno") : "deno";
-for (const fn of ["invite-student", "delete-student"]) {
+for (const fn of ["invite-student", "delete-student", "ai-variant"]) {
   const tmp = join(ROOT, "node_modules/.cache", `${fn}.js`);
   mkdirSync(dirname(tmp), { recursive: true });
   const r = spawnSync(DENO, ["bundle", "--platform", "deno", "--external", "npm:*", "-o", tmp, join(ROOT, "supabase/functions", fn, "index.ts")], { encoding: "utf8" });

@@ -6,14 +6,16 @@ import { BlockersPanel } from '../LanguagePanels';
 const status = (items) => ({ language: 'csharp', status: 'draft', items, recipients: [] });
 
 describe('BlockersPanel', () => {
-  it('shows the missing-variant blocker with a manual-create link and a disabled AI placeholder', () => {
+  it('shows the missing-variant blocker with a manual-create link and an AI suggestion link', () => {
     render(<MemoryRouter><BlockersPanel status={status([
       { assignment_question_id: 'a1', question_id: 'q1', title: 'לולאות', status: 'missing_variant' },
       { assignment_question_id: 'a2', question_id: 'q2', title: 'מערכים', status: 'ok' },
     ])} /></MemoryRouter>);
     expect(screen.getByText(/לשאלה הזו עדיין אין גרסת/)).toHaveTextContent('C#');
     expect(screen.getByRole('link', { name: /צור ידנית/ })).toHaveAttribute('href', '/teacher/questions/q1?variant=csharp');
-    expect(screen.getByRole('button', { name: /הצע באמצעות AI/ })).toBeDisabled();
+    // the AI entry is a link to the editor (no auto-run); it is no longer a disabled placeholder
+    expect(screen.getByRole('link', { name: /הצע באמצעות AI/ })).toHaveAttribute('href', '/teacher/questions/q1?suggest=csharp');
+    expect(screen.queryByRole('button', { name: /הצע באמצעות AI/ })).toBeNull();
     expect(screen.queryByText('מערכים')).toBeNull();
   });
 

@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
+import { ToastHost } from '../components/ui/Toast';
 import Logo from '../components/brand/Logo';
 import NotificationBell from '../features/notifications/NotificationBell';
 import { useNotificationCenter } from '../features/notifications/useNotificationCenter';
@@ -59,6 +60,7 @@ export default function AppShell({ items }) {
       <main className={styles.main}>
         <div className={styles.content}><Outlet /></div>
       </main>
+      <ToastHost />
 
       {items.length > 1 && (
         <nav aria-label={nav.mainNav} className={styles.tabbar}>

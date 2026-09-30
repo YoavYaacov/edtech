@@ -22,11 +22,24 @@
 [dir='ltr'] .chevron { transform: rotate(-90deg); }
 .root[data-open] .chevron { transform: rotate(0); }
 .actions { padding-inline-end: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex: none; }
-/* a header with an action button: give the button room inside the card (vertical padding + side inset) */
-.hasActions { padding-block: var(--space-2); flex-wrap: wrap; }
+/* A header with an action: two-column grid (toggle | action), both vertically centred on the same axis, never wrapping
+   to a second row (a wrapped action made the header taller and the button look off-centre on phones). The toggle keeps
+   the whole first column as its click target; the action is a SIBLING of the toggle, so clicking it cannot collapse. */
+.hasActions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); padding-block: var(--space-2); }
 .hasActions .toggle { min-height: 44px; }
-.hasActions .heading { flex: 1 1 140px; }
-.hasActions .actions { padding-inline-start: var(--space-3); }
+.hasActions .heading { flex: none; align-self: center; }
+.hasActions .actions { align-self: center; margin: 0; padding-inline-start: var(--space-1); }
+.hasActions .actions > * { margin-block: 0; white-space: nowrap; }
+/* phones: a slimmer action and toggle padding keep title and action on ONE row (no extra header height) */
+@media (max-width: 480px) {
+  .hasActions .toggle { padding-inline: var(--space-3); }
+  .hasActions .title { overflow-wrap: break-word; }
+  .hasActions .actions { padding-inline-end: var(--space-2); }
+  .hasActions { grid-template-columns: minmax(8.5rem, 1fr) minmax(0, 46%); }
+  .hasActions .actions { justify-self: end; max-width: 100%; }
+  /* a long action label wraps inside its 44px box instead of stealing the title's width */
+  .hasActions .actions > * { padding-block: 2px; padding-inline: var(--space-3); font-size: var(--fs-sm); line-height: 1.2; white-space: normal; text-align: start; min-height: 44px; }
+}
 .body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 180ms ease; }
 .root[data-open] > .body { grid-template-rows: 1fr; }
 .inner { overflow: hidden; min-height: 0; padding-inline: var(--space-4); }

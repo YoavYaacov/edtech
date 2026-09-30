@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { requestAiVariant } from './aiVariantClient';
 
 export const LIST_LIMIT = 200;
 
@@ -66,4 +67,16 @@ export function saveQuestionVariant(questionId, v) {
 
 export function deleteQuestionVariant(variantId) {
   return supabase.from('question_variants').delete().eq('id', variantId);
+}
+
+// ---- AI-proposed variant (C2) ----
+// Asks the ai-variant Edge Function for a PROPOSAL. Nothing is saved by this call.
+export function requestQuestionVariantProposal(questionId, targetLanguage, opts) {
+  return requestAiVariant(supabase, questionId, targetLanguage, opts);
+}
+
+// Best-effort audit of what the teacher did with the proposal: 'saved' | 'saved_edited' | 'discarded'. Never blocks the UI.
+export async function recordAiVariantAction(runId, action) {
+  if (!runId) return;
+  try { await supabase.rpc('set_ai_variant_run_action', { p_run_id: runId, p_action: action }); } catch { /* audit only */ }
 }

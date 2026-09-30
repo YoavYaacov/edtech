@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"; MIG="$HERE/../../migrations"
 $PSQL < "$HERE/seed_legacy.sql" >/dev/null
 $PSQL < "$HERE/publish_legacy.sql" >/dev/null
 $PSQL -A -F' ' -t < "$HERE/fingerprint.sql" > /tmp/fp_before.txt
-for f in 20260930000100 20260930000200 20260930000300 20260930000400 20261001000100; do
+for f in 20260930000100 20260930000200 20260930000300 20260930000400 20261001000100 20261002000100; do
   $PSQL < "$MIG/${f}_"*.sql >/dev/null
 done
 $PSQL -A -F' ' -t < "$HERE/fingerprint.sql" > /tmp/fp_after.txt

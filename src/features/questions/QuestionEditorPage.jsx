@@ -171,7 +171,7 @@ export default function QuestionEditorPage() {
           : <VariantsPanel questionId={questionId} languages={courseLangs} baseLanguage={baseLanguage}
               base={{ body_md: saved.body_md, starter_code: saved.starter_code, solution_code: saved.solution_code,
                 explanation_md: saved.explanation_md, hint1: saved.hint1, hint2: saved.hint2 }}
-              focusLanguage={search.get('variant')} />
+              focusLanguage={search.get('variant')} suggestLanguage={search.get('suggest')} />
       )}
 
       <section className={styles.panel} aria-labelledby="sec-details">

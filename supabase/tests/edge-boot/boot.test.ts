@@ -57,7 +57,7 @@ async function boot(entry: string, withEnv: boolean) {
   return { base: null as string | null, stderr: () => stderr, stop: () => {} };
 }
 
-const FUNCS = ["invite-student", "delete-student"];
+const FUNCS = ["invite-student", "delete-student", "ai-variant"];
 
 for (const fn of FUNCS) {
   test(`${fn}: source entrypoint boots and serves (index -> handler -> createStore really linked)`, async () => {
@@ -70,7 +70,7 @@ for (const fn of FUNCS) {
       const res = await fetch(s.base, { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://app.example" }, body: "{}" });
       const body = await res.json();
       assert.equal(res.status, 401, JSON.stringify(body));
-      assert.equal(body.error, "unauthorized");
+      assert.equal(body.error ?? body.error_type, "unauthorized");
     } finally { s.stop(); }
   });
 
@@ -80,7 +80,7 @@ for (const fn of FUNCS) {
       assert.ok(s.base, `BootFailure:\n${s.stderr()}`);
       const res = await fetch(s.base, { method: "POST", body: "{}" });
       assert.equal(res.status, 500);
-      assert.equal((await res.json()).error, "server_misconfigured");
+      const j = await res.json(); assert.equal(j.error ?? j.error_type, "server_misconfigured");
     } finally { s.stop(); }
   });
 
@@ -114,12 +114,12 @@ for (const fn of FUNCS) {
   // and prove that THIS test suite detects it. Without the boot test above this mutation passes every handler test.
   test(`${fn}: MUTATION — a store.ts without the createStore export is caught as a BootFailure`, async () => {
     const copy = mkdtempSync(join(tmpdir(), "mut-"));
-    cpSync(join(FUNCTIONS, fn), copy, { recursive: true });
-    const storePath = join(copy, "store.ts");
+    cpSync(FUNCTIONS, copy, { recursive: true }); // whole functions/ dir: ai-variant imports ../ai-review
+    const storePath = join(copy, fn, "store.ts");
     const src = readFileSync(storePath, "utf8");
     assert.ok(/export function createStore/.test(src));
     writeFileSync(storePath, src.replace("export function createStore", "function createStore"));
-    const s = await boot(join(copy, "index.ts"), true);
+    const s = await boot(join(copy, fn, "index.ts"), true);
     try {
       assert.equal(s.base, null, "a function with a missing export must NOT boot");
       assert.match(s.stderr(), /does not provide an export named 'createStore'/);

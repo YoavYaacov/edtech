@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Collapsible from '../../components/ui/Collapsible';
 import { LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
 import MarkdownField from '../../components/markdown/MarkdownField';
-import { deleteQuestionVariant, fetchQuestionVariants, saveQuestionVariant } from './questionsApi';
+import { deleteQuestionVariant, fetchQuestionVariants, recordAiVariantAction, requestQuestionVariantProposal, saveQuestionVariant } from './questionsApi';
 import { languages as names, variants as t } from '../../i18n/he';
 import styles from './questions.module.css';
 
@@ -15,8 +15,17 @@ const hintOf = (hints, level) => (Array.isArray(hints) ? hints.find((h) => h.lev
 // COPY-ON-CREATE: a NEW variant starts as a full copy of the (saved) base, so the teacher only changes the differences.
 // An EXISTING variant opens as stored (null body/hints = "inherit from base" are shown as the current base text).
 // Later edits of the base never overwrite a variant: the copy is saved as the variant's own content.
-function VariantForm({ questionId, language, existing, base, baseLanguage, onSaved, onCancel }) {
-  const [v, setV] = useState(() => ({
+// proposal (optional): an AI draft {runId, proposal}. It only pre-fills the form; NOTHING is saved until the teacher presses Save.
+function VariantForm({ questionId, language, existing, base, baseLanguage, proposal, onSaved, onCancel }) {
+  const initial = () => {
+    if (!proposal) return null;
+    const p = proposal.proposal;
+    const h = (n) => p.hints[n]?.content_md ?? '';
+    return { body_md: p.body_md, starter_code: p.starter_code, solution_code: p.solution_code, explanation_md: p.explanation_md, hint1: h(0), hint2: h(1) };
+  };
+  const initialRef = useRef(initial());
+  const extraHint3 = proposal?.proposal.hints[2]?.content_md ?? '';
+  const [v, setV] = useState(() => initialRef.current ?? ({
     body_md: existing ? (existing.body_md ?? base.body_md) : base.body_md,
     starter_code: existing ? existing.starter_code : base.starter_code,
     solution_code: existing ? existing.solution_code : base.solution_code,
@@ -33,19 +42,42 @@ function VariantForm({ questionId, language, existing, base, baseLanguage, onSav
     const hints = [];
     if (v.hint1.trim()) hints.push({ level: 1, content_md: v.hint1 });
     if (v.hint2.trim()) hints.push({ level: hints.length + 1, content_md: v.hint2 });
+    if (extraHint3.trim() && hints.length === 2) hints.push({ level: 3, content_md: extraHint3 }); // the form edits two hints; a third AI hint is kept as proposed
+    const edited = proposal ? Object.keys(initialRef.current).some((k) => initialRef.current[k] !== v[k]) : false;
     const { error: err } = await saveQuestionVariant(questionId, {
       language, body_md: v.body_md, starter_code: v.starter_code, solution_code: v.solution_code,
       explanation_md: v.explanation_md, hints: hints.length ? hints : null,
-      origin: existing?.origin === 'ai_proposed' ? 'ai_proposed_edited' : existing?.origin ?? 'manual',
+      origin: proposal ? (edited ? 'ai_proposed_edited' : 'ai_proposed')
+        : existing?.origin === 'ai_proposed' ? 'ai_proposed_edited' : existing?.origin ?? 'manual',
     });
     setBusy(false);
-    if (err) return setError(t.saveError);
-    onSaved();
+    if (err) return setError(t.saveError);   // proposal stays on screen, nothing was saved
+    if (proposal) recordAiVariantAction(proposal.runId, edited ? 'saved_edited' : 'saved');
+    onSaved(Boolean(proposal));
   }
 
   return (
     <div className={styles.variantForm}>
-      {!existing && <p className={styles.copyNote} role="note">{t.copiedFromBase(names[baseLanguage] ?? baseLanguage, names[language] ?? language)}</p>}
+      {proposal && (
+        <div className={styles.aiProposal}>
+          <p className={styles.aiTitle}><Sparkles size={16} aria-hidden="true" /> {t.ai.proposalTitle(names[baseLanguage] ?? baseLanguage, names[language] ?? language)}</p>
+          <p className={styles.copyNote} role="note">{t.ai.proposalNote}</p>
+          {proposal.proposal.warnings.length > 0 && (
+            <div className={styles.aiWarnings} role="note">
+              <strong>{t.ai.warnings}</strong>
+              <ul>{proposal.proposal.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+            </div>
+          )}
+          {proposal.proposal.confidence != null && <p className={styles.muted}>{t.ai.confidence(Math.round(proposal.proposal.confidence * 100))}</p>}
+          <details className={styles.baseCompare}>
+            <summary>{t.ai.baseToggle(names[baseLanguage] ?? baseLanguage)}</summary>
+            <p className={styles.fieldLabel}>{t.ai.baseBody}</p><pre>{base.body_md}</pre>
+            <p className={styles.fieldLabel}>{t.ai.baseStarter}</p><pre dir="ltr">{base.starter_code}</pre>
+            <p className={styles.fieldLabel}>{t.ai.baseSolution}</p><pre dir="ltr">{base.solution_code}</pre>
+          </details>
+        </div>
+      )}
+      {!existing && !proposal && <p className={styles.copyNote} role="note">{t.copiedFromBase(names[baseLanguage] ?? baseLanguage, names[language] ?? language)}</p>}
       <MarkdownField label={t.body} rows={4} value={v.body_md} onChange={set('body_md')} />
       <div className={styles.codeField}>
         <span className={styles.fieldLabel}>{t.starter}</span>
@@ -62,7 +94,7 @@ function VariantForm({ questionId, language, existing, base, baseLanguage, onSav
       </div>
       {error && <p className={styles.saveError} role="alert">{error}</p>}
       <div className={styles.variantActions}>
-        <Button variant="ghost" onClick={onCancel} disabled={busy}>{t.cancel}</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>{proposal ? t.ai.discard : t.cancel}</Button>
         <Button icon={Check} loading={busy} onClick={save}>{busy ? t.saving : t.save}</Button>
       </div>
     </div>
@@ -71,11 +103,14 @@ function VariantForm({ questionId, language, existing, base, baseLanguage, onSav
 
 // Manual variants of a saved question, one row per OTHER language of the course.
 // baseLanguage: the language the base question is written in.
-export default function VariantsPanel({ questionId, languages, baseLanguage, base, onChanged, focusLanguage }) {
+export default function VariantsPanel({ questionId, languages, baseLanguage, base, onChanged, focusLanguage, suggestLanguage }) {
   const [rows, setRows] = useState(null);
   const [editing, setEditing] = useState(focusLanguage ?? null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  // AI proposal flow: {lang, phase:'loading'} | {lang, phase:'error', errorType} | {lang, phase:'ready', runId, proposal}
+  const [ai, setAi] = useState(null);
+  const askToken = useRef(0);
 
   async function load() {
     const { data, error: err } = await fetchQuestionVariants(questionId);
@@ -85,8 +120,33 @@ export default function VariantsPanel({ questionId, languages, baseLanguage, bas
   useEffect(() => { load(); }, [questionId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (focusLanguage) setEditing(focusLanguage); }, [focusLanguage]);
 
+  // "?suggest=<lang>" (from an assignment's blocker list): bring the AI button into view and focus it. It NEVER auto-runs.
+  useEffect(() => {
+    if (!suggestLanguage || rows === null) return;
+    const el = document.querySelector(`[data-ai-lang="${suggestLanguage}"]`);
+    el?.scrollIntoView?.({ block: 'center' });
+    el?.focus?.();
+  }, [suggestLanguage, rows]);
+
   const others = languages.filter((l) => l !== baseLanguage);
   if (others.length === 0) return null;
+
+  async function askAi(lang) {
+    if (ai?.phase === 'loading') return;           // double-click guard: one request at a time
+    setMessage(''); setError('');
+    const token = ++askToken.current;
+    setAi({ lang, phase: 'loading' });
+    const r = await requestQuestionVariantProposal(questionId, lang);
+    if (token !== askToken.current) return;        // cancelled meanwhile: the result is dropped, nothing is used
+    if (!r.ok) return setAi({ lang, phase: 'error', errorType: r.errorType });
+    setAi({ lang, phase: 'ready', runId: r.runId, proposal: r.proposal });
+    setEditing(lang);
+  }
+  function cancelAi() { askToken.current += 1; setAi(null); }
+  function discardAi(lang) {
+    if (ai?.phase === 'ready' && ai.lang === lang) recordAiVariantAction(ai.runId, 'discarded');
+    setAi(null); setEditing(null);
+  }
 
   async function remove(row) {
     setError('');
@@ -117,8 +177,14 @@ export default function VariantsPanel({ questionId, languages, baseLanguage, bas
                   <Badge tone={row ? 'mint' : 'butter'}>{row ? t.has : t.missing}</Badge>
                   <span className={styles.variantBtns}>
                     {editing !== lang && (
-                      <Button variant="secondary" icon={row ? Pencil : Plus} onClick={() => { setMessage(''); setEditing(lang); }}>
+                      <Button variant="secondary" icon={row ? Pencil : Plus} onClick={() => { setMessage(''); setAi(null); setEditing(lang); }}>
                         {row ? t.edit : t.create}
+                      </Button>
+                    )}
+                    {!row && editing !== lang && (
+                      <Button variant="secondary" icon={Sparkles} data-ai-lang={lang} onClick={() => askAi(lang)} disabled={ai?.phase === 'loading'}
+                        title={t.ai.buttonHint}>
+                        {t.ai.button(names[lang] ?? lang)}
                       </Button>
                     )}
                     {row && editing !== lang && (
@@ -126,10 +192,23 @@ export default function VariantsPanel({ questionId, languages, baseLanguage, bas
                     )}
                   </span>
                 </div>
+                {ai?.lang === lang && ai.phase === 'loading' && (
+                  <div className={styles.aiLoading}>
+                    <LoadingState label={t.ai.loading(names[lang] ?? lang)} />
+                    <Button variant="ghost" onClick={cancelAi}>{t.ai.cancelLoading}</Button>
+                  </div>
+                )}
+                {ai?.lang === lang && ai.phase === 'error' && (
+                  <p className={styles.saveError} role="alert">
+                    {t.ai.errors[ai.errorType] ?? t.ai.errors.default} {t.ai.manualInstead}: “{t.create}”.
+                  </p>
+                )}
                 {editing === lang && (
-                  <VariantForm questionId={questionId} language={lang} existing={row} base={base} baseLanguage={baseLanguage}
-                    onCancel={() => setEditing(null)}
-                    onSaved={() => { setEditing(null); setMessage(t.saved); load(); }} />
+                  <VariantForm key={ai?.phase === 'ready' && ai.lang === lang ? `ai-${ai.runId ?? 'x'}` : 'manual'}
+                    questionId={questionId} language={lang} existing={row} base={base} baseLanguage={baseLanguage}
+                    proposal={ai?.phase === 'ready' && ai.lang === lang ? ai : null}
+                    onCancel={() => (ai?.phase === 'ready' && ai.lang === lang ? discardAi(lang) : setEditing(null))}
+                    onSaved={(fromAi) => { setAi(null); setEditing(null); setMessage(fromAi ? t.ai.saved : t.saved); load(); }} />
                 )}
               </li>
             );

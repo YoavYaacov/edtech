@@ -35,7 +35,7 @@ export function LanguagePanel({ assignment, languages, onChanged }) {
 }
 
 // Lists the questions that block publishing in the assignment's language, each with a way to fix it.
-// AI proposals arrive in a later round (C2): the button is a disabled placeholder.
+// "הצע באמצעות AI" opens the question's variants panel with the AI button focused; it never runs the AI by itself.
 export function BlockersPanel({ status }) {
   if (!status?.language) return null;
   const lang = names[status.language] ?? status.language;
@@ -63,7 +63,11 @@ export function BlockersPanel({ status }) {
               {i.status === 'unclassified' && (
                 <Link to={`/teacher/questions/${i.question_id}`} className={styles.linkBtn}>{al.createManual}</Link>
               )}
-              <Button variant="ghost" icon={Sparkles} disabled title={al.aiSoon}>{al.suggestAi} ({al.aiSoon})</Button>
+              {i.status === 'missing_variant' && (
+                <Link to={`/teacher/questions/${i.question_id}?suggest=${status.language}`} className={styles.linkBtnSecondary} title={al.aiHint}>
+                  <Sparkles size={16} aria-hidden="true" />{al.suggestAi}
+                </Link>
+              )}
             </span>
           </li>
         ))}
