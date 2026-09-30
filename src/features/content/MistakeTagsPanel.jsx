@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Archive, ArchiveRestore, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import Collapsible from '../../components/ui/Collapsible';
 import TextField from '../../components/ui/TextField';
 import TextArea from '../../components/ui/TextArea';
 import Select from '../../components/ui/Select';
@@ -102,13 +103,11 @@ export default function MistakeTagsPanel({ courseId, topics }) {
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="tags-title">
-      <div className={styles.panelHeadRow}>
-        <h2 id="tags-title" className={styles.panelTitle}>{t.title}</h2>
-        {!adding && q.status === 'ready' && (
+    <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
+      storageKey={`course:${courseId}:tags`} defaultOpen={false} forceOpen={adding || editingId != null}
+      actions={!adding && q.status === 'ready' && (
           <Button variant="secondary" icon={Plus} onClick={() => { setAdding(true); setEditingId(null); }}>{t.add}</Button>
-        )}
-      </div>
+        )}>
       <p className={styles.muted}>{t.explain}</p>
 
       {adding && (
@@ -189,6 +188,6 @@ export default function MistakeTagsPanel({ courseId, topics }) {
           confirmLabel={dialog.tag.is_archived ? null : common.archive} cancelLabel={t.close}
           busy={busy} onConfirm={archiveFromDialog} onCancel={() => setDialog(null)} />
       )}
-    </section>
+    </Collapsible>
   );
 }

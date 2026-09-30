@@ -115,3 +115,21 @@
 .tagDesc { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
 .tagMeta { display: flex; gap: var(--space-1); }
 @media (max-width: 640px) { .tagFormGrid { grid-template-columns: 1fr; } }
+
+/* collapsible panels (CoursePage) */
+.panelCollapsible { margin-bottom: var(--space-5); }
+.panelCollapsible > div:last-child > div { padding-top: var(--space-1); }
+.treeToggle {
+  display: inline-grid; place-items: center; flex: none; width: 44px; height: 44px; margin-inline-start: -8px;
+  border: 0; background: transparent; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer;
+}
+.treeToggle:hover { background: var(--surface-sunken); color: var(--text); }
+.treeToggle:focus-visible { outline: 3px solid var(--focus, var(--primary)); outline-offset: 1px; }
+.treeToggle svg { transition: transform 160ms ease; transform: rotate(90deg); }
+[dir='ltr'] .treeToggle svg { transform: rotate(-90deg); }
+.treeToggle[aria-expanded='true'] svg { transform: rotate(0); }
+.treeSpacer { flex: none; width: 36px; }
+.branch { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 180ms ease; }
+.branch[data-open='true'] { grid-template-rows: 1fr; }
+.branchInner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .treeToggle svg, .branch { transition: none; } }

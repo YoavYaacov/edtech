@@ -105,3 +105,16 @@
 .qTitle { overflow-wrap: anywhere; }
 @media (max-width: 480px) { .filterWide { grid-column: 1 / -1; } }
 .topicOption span:first-of-type { overflow-wrap: anywhere; }
+
+.topicUnits { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.panelCollapsibleEditor { margin-bottom: var(--space-5); }
+.variantList { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.variantRow { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--surface); }
+.variantHead { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.variantBtns { margin-inline-start: auto; display: inline-flex; gap: var(--space-2); flex-wrap: wrap; }
+.variantForm { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-4); }
+.variantActions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.successNote { color: var(--success); font-size: var(--fs-sm); }
+.neutralRow { display: flex; align-items: flex-start; gap: var(--space-2); min-height: 44px; }
+.neutralRow input { width: 20px; height: 20px; margin-top: 10px; }

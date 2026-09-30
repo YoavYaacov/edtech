@@ -21,6 +21,14 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 9 | `20260925000300_feedback_metadata.sql` | 4 | yes (25.09.2026) |
 | 10 | `20260926000100_notifications.sql` | 5 | yes (per project doc) |
 | 11 | `20260929000100_ai_runs.sql` | 6 (Round 1A) | yes (29.09.2026, per owner report) |
+| 12 | `20260930000100_student_auth_hardening.sql` | Round A | NO - not applied in Production |
+| 13 | `20260930000200_course_languages.sql` | Round C1 | NO - not applied in Production |
+| 14 | `20260930000300_question_variants.sql` | Round C1 | NO - not applied in Production |
+| 15 | `20260930000400_language_resolution.sql` | Round C1 | NO - not applied in Production |
+
+Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
+Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls
+`admin_provision_student` and `admin_find_auth_user`).
 
 After running a migration, update this table and the project doc in the same commit.
 

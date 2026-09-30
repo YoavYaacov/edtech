@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 export function fetchAssignments() {
   return supabase
     .from('assignments')
-    .select('id, title, status, due_at, created_at, course:courses(id, title), assignment_students(count), assignment_questions(count)')
+    .select('id, title, status, due_at, created_at, programming_language, course:courses(id, title, programming_language, course_languages(programming_language)), assignment_students(count), assignment_questions(count)')
     .order('created_at', { ascending: false });
 }
 
@@ -25,15 +25,17 @@ function defaultDueAt() {
   d.setHours(23, 59, 0, 0);
   return d.toISOString();
 }
-export function createAssignment(ownerId, { courseId, title }) {
+export function createAssignment(ownerId, { courseId, title, language }) {
+  const row = { owner_id: ownerId, course_id: courseId, title, due_at: defaultDueAt(), instructions_md: DEFAULT_INSTRUCTIONS_MD };
+  if (language) row.programming_language = language;   // omitted = the server defaults it (single-language / primary)
   return supabase.from('assignments')
-    .insert({ owner_id: ownerId, course_id: courseId, title, due_at: defaultDueAt(), instructions_md: DEFAULT_INSTRUCTIONS_MD })
+    .insert(row)
     .select('id').single();
 }
 
 export function fetchAssignment(id) {
   return supabase.from('assignments')
-    .select('id, title, instructions_md, status, due_at, published_at, closed_at, course_id, course:courses(id, title)')
+    .select('id, title, instructions_md, status, due_at, published_at, closed_at, course_id, programming_language, course:courses(id, title, programming_language, course_languages(programming_language))')
     .eq('id', id).maybeSingle();
 }
 
@@ -112,3 +114,6 @@ export async function fetchProgress(aqIds) {
   if (s.error) return { data: null, error: s.error };
   return { data: { answers: a.data ?? [], reveals: r.data ?? [], submittedAnswerIds: [...new Set(s.data.map((x) => x.answer_id))] }, error: null };
 }
+
+// Draft builder: which questions block publishing in this assignment's language, which recipients study another one.
+export const fetchAssignmentLanguageStatus = (id) => supabase.rpc('assignment_language_status', { p_assignment_id: id });

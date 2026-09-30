@@ -141,11 +141,15 @@ begin
   get diagnostics n = row_count;
   assert n = 1, 'FAIL: T9 teacher could not archive own student';
 
-  -- archived → teacher loses access to that student's profile
-  assert not exists (select 1 from public.profiles
-                     where id = '00000000-0000-4000-8000-0000000000b1'),
-         'FAIL: T9 archived student still visible';
-  raise notice 'PASS T9: archiving removes access';
+  -- archived (decision of 30.09.2026, migration 20260930000100): the teacher KEEPS reading the
+  -- profile (the name stays visible in past submissions / feedback), but loses every
+  -- "active student" capability: new enrollments / assignments require private.teaches().
+  assert exists (select 1 from public.profiles
+                 where id = '00000000-0000-4000-8000-0000000000b1'),
+         'FAIL: T9 archived student name must stay readable for the history';
+  assert not private.teaches('00000000-0000-4000-8000-0000000000b1'),
+         'FAIL: T9 archived student must not count as an active student';
+  raise notice 'PASS T9: archiving hides the student from active use but keeps the name readable';
 end $$;
 
 -- ---------- as ANON --------------------------------------------------

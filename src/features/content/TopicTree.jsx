@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Archive, ArchiveRestore, FolderTree, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ArrowDown, ArrowUp, Archive, ArchiveRestore, FolderTree, Pencil, Plus, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/States';
+import Collapsible from '../../components/ui/Collapsible';
+import { readOpen, writeOpen } from '../../lib/useCollapsed';
 import { buildTree, nextPosition } from '../../lib/topicTree';
 import { createTopic, deleteTopic, reorderSiblings, updateTopic } from './contentApi';
 import { blockedReason, useSafeDelete } from './useSafeDelete';
@@ -42,6 +44,7 @@ export default function TopicTree({ courseId, topics, onChanged }) {
   const [confirm, setConfirm] = useState(null); // topic to archive
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [, bump] = useState(0);
   const del = useSafeDelete({
     check: (id) => deleteTopic(id, { dryRun: true }),
     remove: (id) => deleteTopic(id, { dryRun: false }),
@@ -84,12 +87,26 @@ export default function TopicTree({ courseId, topics, onChanged }) {
     setConfirm(null);
   }
 
+  // Session-only open state per node. Default: a single sibling is open; with several, only the first.
+  const nodeKey = (id) => `course:${courseId}:topic:${id}`;
+  const isOpen = (id, fallback) => readOpen(nodeKey(id), fallback);
+  const setOpen = (id, value) => { writeOpen(nodeKey(id), value); bump((n) => n + 1); };
+
   function renderList(nodes, level) {
     return (
       <ul className={styles.tree} data-level={level}>
-        {nodes.map((node, index) => (
+        {nodes.map((node, index) => {
+          const hasKids = node.children.length > 0;
+          const open = !hasKids || isOpen(node.id, nodes.length === 1 || index === 0) || addingUnder === node.id;
+          const branchId = `branch-${node.id}`;
+          return (
           <li key={node.id}>
             <div className={`${styles.topicRow} ${node.is_archived ? styles.dim : ''}`}>
+              {hasKids ? (
+                <button type="button" className={styles.treeToggle} aria-expanded={open} aria-controls={branchId}
+                  aria-label={`${open ? t.collapse : t.expand}: ${node.title}`}
+                  onClick={() => setOpen(node.id, !open)}><ChevronDown size={18} aria-hidden="true" /></button>
+              ) : <span className={styles.treeSpacer} aria-hidden="true" />}
               <Badge tone={levelTone[level]}>{t.levels[level]}</Badge>
               {editingId === node.id ? (
                 <InlineInput autoFocus initial={node.title} placeholder={t.rename} submitLabel={common.save}
@@ -106,7 +123,7 @@ export default function TopicTree({ courseId, topics, onChanged }) {
                     disabled={busy || index === nodes.length - 1} onClick={() => move(node, nodes, 1)}><ArrowDown size={17} /></button>
                   {level < MAX_LEVEL && !node.is_archived && (
                     <button type="button" className={styles.iconBtn} title={t.addChild(level)} aria-label={`${t.addChild(level)}: ${node.title}`}
-                      onClick={() => setAddingUnder(node.id)}><Plus size={17} /></button>
+                      onClick={() => { setOpen(node.id, true); setAddingUnder(node.id); }}><Plus size={17} /></button>
                   )}
                   <button type="button" className={styles.iconBtn} title={t.rename} aria-label={`${t.rename}: ${node.title}`}
                     onClick={() => setEditingId(node.id)}><Pencil size={16} /></button>
@@ -129,16 +146,21 @@ export default function TopicTree({ courseId, topics, onChanged }) {
                   onSubmit={add(node.id)} onCancel={() => setAddingUnder(null)} />
               </div>
             )}
-            {node.children.length > 0 && renderList(node.children, level + 1)}
+            {hasKids && (
+              <div id={branchId} className={styles.branch} data-open={open} inert={!open || undefined}>
+                <div className={styles.branchInner}>{renderList(node.children, level + 1)}</div>
+              </div>
+            )}
           </li>
-        ))}
+          );
+        })}
       </ul>
     );
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="topics-title">
-      <h2 id="topics-title" className={styles.panelTitle}>{t.title}</h2>
+    <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
+      storageKey={`course:${courseId}:topics`} defaultOpen>
       <p className={styles.muted}>{t.explain}</p>
       {(error || del.error) && <p className={styles.errorNote} role="alert">{error || del.error}</p>}
       <div className={styles.treeArea}>
@@ -168,6 +190,6 @@ export default function TopicTree({ courseId, topics, onChanged }) {
           confirmLabel={del.state.item.is_archived ? null : sd.archiveInstead} cancelLabel={sd.close} busy={busy}
           onConfirm={async () => { await setArchived(del.state.item, true); del.close(); }} onCancel={del.close} />
       ))}
-    </section>
+    </Collapsible>
   );
 }

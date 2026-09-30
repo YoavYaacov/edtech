@@ -11,7 +11,7 @@ import Markdown from '../../components/markdown/Markdown';
 import FeedbackForm, { isReady } from './FeedbackForm';
 import { fetchReference, fetchReviewData, sendFeedbackToStudent } from './reviewApi';
 import { useAsync } from '../../lib/useAsync';
-import { errors, formatDateTime, nav, questionLabels as L, release as rl, review as t } from '../../i18n/he';
+import { errors, formatDateTime, languages, nav, questionLabels as L, release as rl, review as t } from '../../i18n/he';
 
 const STATE_ICON = { none: CircleDashed, in_progress: Pencil, pending: Clock, pending_draft: FilePen, reviewed: CheckCircle2, returned: RotateCcw };
 import styles from './review.module.css';
@@ -269,7 +269,7 @@ function QuestionPanel({ aq }) {
     <section className={styles.card} aria-labelledby="q-title">
       <details open className={styles.details}>
         <summary><span id="q-title" className={styles.cardTitle}>{t.question}: {aq.title}</span></summary>
-        <div className={styles.badges}><Badge tone="sky">{L.questionType[aq.question_type]}</Badge></div>
+        <div className={styles.badges}><Badge tone="sky">{L.questionType[aq.question_type]}</Badge>{aq.question_type !== 'text' && aq.programming_language && <Badge tone="lavender"><span dir="ltr">{languages[aq.programming_language] ?? aq.programming_language}</span></Badge>}</div>
         <Markdown>{aq.body_md}</Markdown>
       </details>
       <details className={styles.details} onToggle={(e) => setRefOpen(e.currentTarget.open)}>

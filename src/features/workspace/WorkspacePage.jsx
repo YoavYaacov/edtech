@@ -10,7 +10,7 @@ import Markdown from '../../components/markdown/Markdown';
 import { useAsync } from '../../lib/useAsync';
 import { useAutosave } from './useAutosave';
 import { fetchHints, fetchSolution, fetchWorkspace, revealHint, revealSolution, saveAnswer, submitAnswer } from './workspaceApi';
-import { errors, formatDateTime, formatTime, questionLabels as L, studentFeedback as sf, verdictLabels, workspace as t } from '../../i18n/he';
+import { errors, formatDateTime, formatTime, languages, questionLabels as L, studentFeedback as sf, verdictLabels, workspace as t } from '../../i18n/he';
 import { VERDICTS } from '../review/VerdictPicker';
 import styles from './workspace.module.css';
 
@@ -202,7 +202,7 @@ function WorkspaceView({ data }) {
             <section className={styles.card} aria-labelledby="q-title">
               <p className={styles.eyebrow}>{t.questionOf(index + 1, n)}</p>
               <h2 id="q-title" className={styles.qTitle}>{aq.title}</h2>
-              <div className={styles.badges}><Badge tone="sky">{L.questionType[aq.question_type]}</Badge></div>
+              <div className={styles.badges}><Badge tone="sky">{L.questionType[aq.question_type]}</Badge>{aq.question_type !== 'text' && aq.programming_language && <Badge tone="lavender"><span dir="ltr">{languages[aq.programming_language] ?? aq.programming_language}</span></Badge>}</div>
               <Markdown>{aq.body_md}</Markdown>
             </section>
 

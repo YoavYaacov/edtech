@@ -11,16 +11,17 @@ import Markdown from '../../components/markdown/Markdown';
 import MarkdownField from '../../components/markdown/MarkdownField';
 import TopicPicker from './TopicPicker';
 import { fetchQuestion, saveQuestion } from './questionsApi';
-import { fetchCourses, fetchTopics } from '../content/contentApi';
+import VariantsPanel from './VariantsPanel';
+import { courseLanguageList, fetchCourses, fetchTopics } from '../content/contentApi';
 import { useAsync } from '../../lib/useAsync';
-import { common, errors, flash, languages, nav, questionEditor as t, questionLabels as L } from '../../i18n/he';
+import { common, errors, flash, languages, nav, questionEditor as t, questionLabels as L, variants as vt } from '../../i18n/he';
 import styles from './questions.module.css';
 
 const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
 const one = (x) => (Array.isArray(x) ? x[0] : x) ?? null; // 1:1 embeds may come back as object or array
 
 const EMPTY = {
-  title: '', course_id: '', question_type: 'code', programming_language: '', difficulty: 'intermediate',
+  title: '', course_id: '', question_type: 'code', programming_language: '', is_language_neutral: false, difficulty: 'intermediate',
   status: 'draft', source_type: 'original', source_year: '', source_exam: '', tags: '',
   body_md: '', starter_code: '', topic_ids: [], hint1: '', hint2: '',
   solution_code: '', explanation_md: '', teacher_notes: '',
@@ -31,7 +32,7 @@ function fromRow(q) {
   const sol = one(q.question_solutions);
   return {
     title: q.title, course_id: q.course_id, question_type: q.question_type,
-    programming_language: q.programming_language ?? '', difficulty: q.difficulty, status: q.status,
+    programming_language: q.programming_language ?? '', is_language_neutral: Boolean(q.is_language_neutral), difficulty: q.difficulty, status: q.status,
     source_type: q.source_type, source_year: q.source_year ? String(q.source_year) : '', source_exam: q.source_exam,
     tags: (q.tags ?? []).join(', '), body_md: q.body_md, starter_code: q.starter_code,
     topic_ids: (q.question_topics ?? []).map((x) => x.topic_id),
@@ -45,7 +46,8 @@ function fromRow(q) {
 function toPayload(id, v) {
   return {
     id: id ?? null, course_id: v.course_id, title: v.title.trim(), body_md: v.body_md,
-    question_type: v.question_type, programming_language: v.programming_language || null,
+    question_type: v.question_type, programming_language: v.is_language_neutral ? null : (v.programming_language || null),
+    is_language_neutral: v.is_language_neutral,
     starter_code: v.question_type === 'text' ? '' : v.starter_code,
     difficulty: v.difficulty, status: v.status, source_type: v.source_type,
     source_year: v.source_year ? Number(v.source_year) : null, source_exam: v.source_exam.trim(),
@@ -151,7 +153,12 @@ export default function QuestionEditorPage() {
     .filter((c) => !c.is_archived || c.id === values.course_id)
     .map((c) => ({ value: c.id, label: c.title }));
   const hasCode = values.question_type !== 'text';
-  const lang = values.programming_language || 'java';
+  const course = coursesQ.data.find((c) => c.id === values.course_id);
+  const courseLangs = courseLanguageList(course);
+  const multi = courseLangs.length > 1;
+  // A question without a language counts as the course's primary language (legacy "unclassified").
+  const baseLanguage = values.programming_language || course?.programming_language || '';
+  const lang = baseLanguage || 'java';
 
   return (
     <form onSubmit={handleSave} noValidate className={styles.editor}>
@@ -165,8 +172,8 @@ export default function QuestionEditorPage() {
           <Select label={t.course} value={values.course_id} onChange={changeCourse} options={courseOptions}
             placeholder={values.course_id ? undefined : '—'} hint={isNew ? undefined : t.courseChangeNote} />
           <Select label={t.type} value={values.question_type} onChange={set('question_type')} options={toOptions(L.questionType)} />
-          <Select label={t.language} value={values.programming_language} onChange={set('programming_language')}
-            options={toOptions(languages)} placeholder={common.none} />
+          <Select label={t.language} value={values.is_language_neutral ? '' : values.programming_language} onChange={set('programming_language')}
+            disabled={values.is_language_neutral} options={toOptions(languages)} placeholder={common.none} />
           <Select label={t.difficulty} value={values.difficulty} onChange={set('difficulty')} options={toOptions(L.difficulty)} />
           <Select label={t.status} value={values.status} onChange={set('status')} options={toOptions(L.status)} />
           <Select label={t.source} value={values.source_type} onChange={set('source_type')} options={toOptions(L.sourceType)} />
@@ -175,6 +182,16 @@ export default function QuestionEditorPage() {
           <TextField label={t.sourceExam} hint={t.sourceExamHint} value={values.source_exam} onChange={set('source_exam')} maxLength={200} />
           <TextField label={t.tags} hint={t.tagsHint} value={values.tags} onChange={set('tags')} />
         </div>
+        {multi && (
+          <label className={styles.neutralRow}>
+            <input type="checkbox" checked={values.is_language_neutral}
+              onChange={(e) => { setNotice(''); setValues((v) => ({ ...v, is_language_neutral: e.target.checked, programming_language: e.target.checked ? '' : v.programming_language })); }} />
+            <span>{vt.neutral}<br /><span className={styles.muted}>{vt.neutralHint}</span></span>
+          </label>
+        )}
+        {multi && !values.is_language_neutral && !values.programming_language && (
+          <p className={styles.muted}>{vt.unclassifiedHint}</p>
+        )}
       </section>
 
       <section className={styles.panel} aria-labelledby="sec-content">
@@ -235,6 +252,13 @@ export default function QuestionEditorPage() {
         )}
         <MarkdownField label={t.explanation} rows={4} value={values.explanation_md} onChange={set('explanation_md')} />
       </section>
+
+      {multi && !values.is_language_neutral && (
+        isNew
+          ? <p className={styles.muted}>{vt.saveFirst}</p>
+          : <VariantsPanel questionId={questionId} languages={courseLangs} baseLanguage={baseLanguage}
+              baseHints={[values.hint1, values.hint2]} focusLanguage={search.get('variant')} />
+      )}
 
       <section className={`${styles.panel} ${styles.private}`} aria-labelledby="sec-notes">
         <h2 id="sec-notes" className={styles.panelTitle}><EyeOff size={18} aria-hidden="true" />{t.sectionNotes}</h2>

@@ -7,12 +7,13 @@ import Button from '../../components/ui/Button';
 import TextField from '../../components/ui/TextField';
 import { LoadingState } from '../../components/ui/States';
 import { initialUrlHash } from '../../lib/supabaseClient';
-import { authErrorMessage } from '../../lib/authErrors';
+import { linkErrorMessage, passwordErrorMessage } from '../../lib/authErrors';
 import { auth } from '../../i18n/he';
 import styles from './authForms.module.css';
 
 const MIN_LENGTH = 8;
 const linkHadError = /(^|[#&])error=/.test(initialUrlHash);
+const linkErrorText = linkErrorMessage(initialUrlHash);
 
 // Landing page for invite links and password-reset links.
 // supabase-js reads the tokens from the URL and creates the session.
@@ -29,7 +30,7 @@ export default function SetPasswordPage() {
   if (!session || linkHadError) {
     return (
       <AuthLayout title={auth.setPasswordTitle}>
-        <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{auth.linkInvalid}</p>
+        <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{linkErrorText ?? auth.linkInvalid}</p>
         <Link to="/login">{auth.backToLogin}</Link>
       </AuthLayout>
     );
@@ -43,7 +44,7 @@ export default function SetPasswordPage() {
     setError('');
     const { error: err } = await updatePassword(password);
     setBusy(false);
-    if (err) return setError(authErrorMessage(err));
+    if (err) return setError(passwordErrorMessage(err));
     navigate('/', { replace: true });
   }
 

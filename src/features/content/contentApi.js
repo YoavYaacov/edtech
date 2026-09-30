@@ -1,6 +1,14 @@
 import { supabase } from '../../lib/supabaseClient';
 
-const COURSE_FIELDS = 'id, title, code, description, programming_language, is_archived, created_at';
+const COURSE_FIELDS = 'id, title, code, description, programming_language, is_archived, created_at, course_languages(programming_language)';
+
+// The languages a course supports, primary first: ['java', 'csharp'].
+export function courseLanguageList(course) {
+  const set = (course?.course_languages ?? []).map((x) => x.programming_language);
+  const primary = course?.programming_language;
+  if (!primary) return [];
+  return [primary, ...set.filter((l) => l !== primary).sort()];
+}
 
 export function fetchCourses() {
   // RLS returns only courses the caller owns (teacher) or is enrolled in (student).
@@ -62,13 +70,30 @@ export async function reorderSiblings(orderedIds, currentPositions) {
 export function fetchEnrollments(courseId) {
   return supabase
     .from('course_enrollments')
-    .select('student_id, created_at, student:profiles(id, full_name)')
+    .select('student_id, created_at, programming_language, student:profiles(id, full_name)')
     .eq('course_id', courseId)
     .order('created_at', { ascending: true });
 }
 
-export function enrollStudent(courseId, studentId) {
-  return supabase.from('course_enrollments').insert({ course_id: courseId, student_id: studentId });
+export function enrollStudent(courseId, studentId, language) {
+  const row = { course_id: courseId, student_id: studentId };
+  if (language) row.programming_language = language;
+  return supabase.from('course_enrollments').insert(row);
+}
+
+// The student's programming language in this course (server rejects it while a draft assignment in another language exists).
+export function setEnrollmentLanguage(courseId, studentId, language) {
+  return supabase.from('course_enrollments').update({ programming_language: language })
+    .eq('course_id', courseId).eq('student_id', studentId).select('student_id');
+}
+
+export function addCourseLanguage(courseId, language) {
+  return supabase.from('course_languages').insert({ course_id: courseId, programming_language: language });
+}
+
+// Fails (FK) while any enrollment or assignment still uses the language; the primary language cannot be removed.
+export function removeCourseLanguage(courseId, language) {
+  return supabase.from('course_languages').delete().eq('course_id', courseId).eq('programming_language', language);
 }
 
 export function unenrollStudent(courseId, studentId) {

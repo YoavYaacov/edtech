@@ -10,7 +10,8 @@ import CourseForm from './CourseForm';
 import TopicTree from './TopicTree';
 import EnrollmentPanel from './EnrollmentPanel';
 import MistakeTagsPanel from './MistakeTagsPanel';
-import { deleteCourse, fetchCourse, fetchTopics, updateCourse } from './contentApi';
+import CourseLanguagesPanel from './CourseLanguagesPanel';
+import { courseLanguageList, deleteCourse, fetchCourse, fetchTopics, updateCourse } from './contentApi';
 import { blockedReason, useSafeDelete } from './useSafeDelete';
 import { useAsync } from '../../lib/useAsync';
 import { common, courses as t, errors, flash, languages, nav, safeDelete as sd } from '../../i18n/he';
@@ -61,7 +62,7 @@ export default function CoursePage() {
         actions={!editing && <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>{t.editDetails}</Button>} />
       <div className={styles.metaRow}>
         {c.code && <Badge tone="lavender"><span dir="ltr">{c.code}</span></Badge>}
-        {c.programming_language && <Badge tone="sky">{languages[c.programming_language]}</Badge>}
+        {courseLanguageList(c).map((l) => <Badge key={l} tone="sky">{languages[l]}</Badge>)}
         {c.is_archived && <Badge tone="butter">{t.archivedNotice}</Badge>}
       </div>
 
@@ -78,7 +79,8 @@ export default function CoursePage() {
         {topicsQ.status === 'error' && <ErrorState message={errors.generic} onRetry={topicsQ.reload} />}
         {topicsQ.status === 'ready' && <TopicTree courseId={c.id} topics={topicsQ.data} onChanged={topicsQ.reload} />}
         {topicsQ.status === 'ready' && <MistakeTagsPanel courseId={c.id} topics={topicsQ.data} />}
-        <EnrollmentPanel courseId={c.id} />
+        {c.programming_language && <CourseLanguagesPanel course={c} languages={courseLanguageList(c)} onChanged={course.reload} />}
+        <EnrollmentPanel courseId={c.id} languages={courseLanguageList(c)} primaryLanguage={c.programming_language} />
       </div>
 
       <div className={styles.dangerZone}>

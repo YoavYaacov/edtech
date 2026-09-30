@@ -10,17 +10,19 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import MarkdownField from '../../components/markdown/MarkdownField';
 import ProgressPanel from './ProgressPanel';
+import { assignmentLanguage as alt } from '../../i18n/he';
 import { statusTone } from './AssignmentsPage';
 import {
   addAssignmentQuestion, addRecipient, deleteAssignment, fetchAssignment, fetchAssignmentQuestions, fetchRecipients,
-  publishAssignment, removeAssignmentQuestion, removeRecipient, reorderAssignmentQuestions, setAssignmentClosed,
+  fetchAssignmentLanguageStatus, publishAssignment, removeAssignmentQuestion, removeRecipient, reorderAssignmentQuestions, setAssignmentClosed,
   unpublishAssignment, updateAssignment, updateAssignmentQuestion,
 } from './assignmentsApi';
-import { fetchEnrollments, fetchTopics } from '../content/contentApi';
+import { courseLanguageList, fetchEnrollments, fetchTopics } from '../content/contentApi';
+import { BlockersPanel, LanguagePanel } from './LanguagePanels';
 import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
 import { fetchQuestions } from '../questions/questionsApi';
 import { useAsync } from '../../lib/useAsync';
-import { assignmentLabels as AL, assignments as t, common, errors, nav, questionLabels as QL, questions as qt } from '../../i18n/he';
+import { assignmentLabels as AL, assignments as t, common, errors, languages as langNames, nav, questionLabels as QL, questions as qt } from '../../i18n/he';
 import styles from './assignments.module.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -41,6 +43,11 @@ export default function AssignmentPage() {
   const courseId = aQ.data?.course_id;
   const eQ = useAsync(() => (courseId ? fetchEnrollments(courseId) : Promise.resolve({ data: [], error: null })), [courseId]);
   const [action, setAction] = useState(null); // publish | unpublish | close | delete
+  // Draft in a multi-language course: what blocks publishing in the assignment's language (server-computed).
+  const draftLang = aQ.data?.status === 'draft' && courseLanguageList(aQ.data?.course).length > 1;
+  const langQ = useAsync(
+    () => (draftLang ? fetchAssignmentLanguageStatus(assignmentId) : Promise.resolve({ data: null, error: null })),
+    [assignmentId, draftLang, aQ.data?.programming_language, qQ.data, rQ.data]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState({ kind: '', text: '' });
 
@@ -69,9 +76,10 @@ export default function AssignmentPage() {
     setBusy(false);
     setAction(null);
     if (res.error) return setMessage({ kind: 'error', text: errors.generic });
-    if (!res.data.ok) return setMessage({ kind: 'error', text: t.reasons[res.data.reason] ?? errors.generic });
+    if (!res.data.ok) { langQ.reload(); return setMessage({ kind: 'error', text: t.reasons[res.data.reason] ?? errors.generic }); }
     if (kind === 'publish') setMessage({ kind: 'success', text: t.published });
     reloadAll();
+    langQ.reload();
   }
 
   const dialogs = {
@@ -96,6 +104,7 @@ export default function AssignmentPage() {
           already exists rather than finish building a new one, stay here. */}
       <div className={styles.statusBar}>
         <Badge tone={statusTone[a.status]}>{AL.status[a.status]}</Badge>
+        {courseLanguageList(a.course).length > 1 && a.programming_language && <Badge tone="sky">{langNames[a.programming_language] ?? a.programming_language}</Badge>}
         <div className={styles.actionsRow}>
           {isDraft && <Button variant="dangerGhost" icon={Trash2} onClick={() => setAction('delete')}>{t.deleteDraft}</Button>}
           {a.status === 'published' && <Button variant="ghost" icon={RotateCcw} title={t.lifecycleHelp.unpublish}
@@ -115,6 +124,10 @@ export default function AssignmentPage() {
 
       <DetailsPanel assignment={a} onSaved={aQ.reload} />
 
+      {isDraft && courseLanguageList(a.course).length > 1 && (
+        <LanguagePanel assignment={a} languages={courseLanguageList(a.course)} onChanged={() => { aQ.reload(); rQ.reload(); }} />
+      )}
+
       {/* Gate on qQ.data, not qQ.status === 'ready': useAsync's reload() flips status to
           'loading' immediately but keeps the previous data (see useAsync.js) — gating on
           status here used to unmount QuestionsPanel on every add/remove (onChanged calls
@@ -125,6 +138,8 @@ export default function AssignmentPage() {
         <QuestionsPanel assignment={a} items={qQ.data} onChanged={qQ.reload} />
       )}
       {qQ.status === 'error' && <ErrorState message={errors.generic} onRetry={qQ.reload} />}
+
+      {isDraft && langQ.data && <BlockersPanel status={langQ.data} />}
 
       {rQ.status === 'ready' && eQ.status === 'ready' && (
         <StudentsPanel assignment={a} recipients={rQ.data} enrolled={eQ.data} onChanged={rQ.reload} />
@@ -338,6 +353,8 @@ function StudentsPanel({ assignment, recipients, enrolled, onChanged }) {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
   const chosen = new Set(recipients.map((r) => r.student_id));
+  const lang = assignment.programming_language;
+  const mismatch = (e) => Boolean(lang) && (e.programming_language ?? null) !== lang && !chosen.has(e.student_id);
 
   async function toggle(studentId) {
     setBusyId(studentId);
@@ -363,9 +380,10 @@ function StudentsPanel({ assignment, recipients, enrolled, onChanged }) {
         {enrolled.map((e) => (
           <li key={e.student_id}>
             <label className={`${styles.studentOption} ${chosen.has(e.student_id) ? styles.studentOn : ''}`}>
-              <input type="checkbox" checked={chosen.has(e.student_id)} disabled={busyId === e.student_id}
+              <input type="checkbox" checked={chosen.has(e.student_id)} disabled={busyId === e.student_id || mismatch(e)}
                 onChange={() => toggle(e.student_id)} />
               <span>{e.student?.full_name}</span>
+              {mismatch(e) && <span className={styles.recipientLang}>{alt.recipientMismatch(langNames[e.programming_language] ?? '—')}</span>}
             </label>
           </li>
         ))}

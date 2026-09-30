@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 export async function fetchMyAssignments() {
   const [a, ans] = await Promise.all([
     supabase.from('assignments')
-      .select('id, title, status, due_at, published_at, course:courses(title), assignment_questions(id)')
+      .select('id, title, status, due_at, published_at, course_id, course:courses(title), assignment_questions(id)')
       .order('published_at', { ascending: false }),
     supabase.from('answers').select('assignment_question_id, status'),
   ]);

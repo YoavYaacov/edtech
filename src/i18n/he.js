@@ -87,11 +87,26 @@ export const errors = {
   missingEnv: 'חסרים משתני סביבה של Supabase. ראו את ‎.env.example.',
 };
 
+// Set-password / invite-link errors. Only KNOWN Supabase Auth error codes are mapped
+// (see @supabase/auth-js ErrorCode); anything else falls back to errors.generic.
+export const passwordErrors = {
+  weak: 'הסיסמה חלשה מדי. בחרו סיסמה ארוכה וייחודית יותר.',
+  weakLength: 'הסיסמה קצרה מדי לפי דרישות המערכת. בחרו סיסמה ארוכה יותר.',
+  weakCharacters: 'הסיסמה חייבת לכלול שילוב של אותיות באנגלית, ספרות ותווים מיוחדים.',
+  weakPwned: 'הסיסמה הזו מופיעה ברשימות של סיסמאות שנחשפו בדליפות. בחרו סיסמה אחרת.',
+  samePassword: 'הסיסמה החדשה זהה לסיסמה הנוכחית. בחרו סיסמה אחרת.',
+  linkExpired: 'הקישור פג תוקף או שכבר נעשה בו שימוש. בקשו מהמורה הזמנה חדשה, או בחרו "שכחתי סיסמה" במסך הכניסה.',
+  sessionLost: 'ההתחברות מהקישור פגה. פתחו שוב את הקישור מהאימייל, או בחרו "שכחתי סיסמה" במסך הכניסה.',
+  accountUnavailable: 'החשבון לא נמצא או שהוא חסום. פנו למורה.',
+  rateLimited: 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.',
+};
+
 export const common = {
   loading: 'טוען…',
   hello: (name) => (name ? `שלום, ${name}` : 'שלום'),
   since: 'מאז',
   cancel: 'ביטול',
+  close: 'סגירה',
   save: 'שמירה',
   saving: 'שומרים…',
   saved: 'נשמר',
@@ -108,6 +123,68 @@ export const common = {
   back: 'חזרה',
 };
 
+export const assignmentLanguage = {
+  label: 'שפת המטלה',
+  hint: 'לכל מטלה שפה אחת. אחרי הפרסום היא קבועה. כדי לתת את אותו תוכן בשפה אחרת, יוצרים מטלה נוספת.',
+  changeError: 'אי אפשר להחליף שפה: יש נמענים שלומדים שפה אחרת. הסירו אותם קודם.',
+  saveError: 'החלפת השפה נכשלה.',
+  blockersTitle: (lang) => `שאלות שחוסמות פרסום ב-${lang}`,
+  blockersIntro: 'המטלה לא תפורסם עד שלכל השאלות יהיה תוכן בשפה שלה.',
+  missing_variant: (lang) => `לשאלה הזו עדיין אין גרסת ${lang}`,
+  unclassified: (lang) => `לשאלה הזו לא הוגדרה שפה, ולכן היא נחשבת לשפה הראשית של הקורס ולא מתאימה ל-${lang}`,
+  createManual: 'צור ידנית',
+  suggestAi: 'הצע באמצעות AI',
+  aiSoon: 'בקרוב',
+  recipientMismatch: (lang) => `לומד/ת ${lang}`,
+  allGood: 'לכל השאלות יש תוכן בשפת המטלה.',
+};
+
+export const variants = {
+  title: 'גרסאות לפי שפת תכנות',
+  explain: 'השאלה כתובה בשפה אחת (הבסיס). כדי להקצות אותה לתלמידים שלומדים שפה אחרת, צרו לה גרסה בשפה הזו: קוד פתיחה, פתרון והסבר. הנוסח והרמזים עוברים מהבסיס אלא אם משנים אותם.',
+  base: 'שפת הבסיס',
+  has: 'יש גרסה',
+  missing: 'חסרה גרסה',
+  create: 'יצירת גרסה',
+  edit: 'עריכה',
+  delete: 'מחיקת הגרסה',
+  save: 'שמירת הגרסה',
+  saving: 'שומרים…',
+  saved: 'הגרסה נשמרה.',
+  saveError: 'שמירת הגרסה נכשלה.',
+  deleteError: 'מחיקת הגרסה נכשלה.',
+  cancel: 'סגירה',
+  body: 'נוסח השאלה (ריק = כמו בבסיס)',
+  starter: 'קוד פתיחה',
+  solution: 'פתרון (מוסתר מהתלמיד)',
+  explanation: 'הסבר לפתרון',
+  hint1: 'רמז 1 (ריק = כמו בבסיס)',
+  hint2: 'רמז 2 (ריק = כמו בבסיס)',
+  saveFirst: 'שמרו את השאלה לפני יצירת גרסאות.',
+  neutral: 'שאלה ללא תלות בשפת תכנות',
+  neutralHint: 'מתאימה לכל שפה כמו שהיא, בלי גרסאות.',
+  unclassifiedHint: 'שאלה ללא שפה נחשבת לשפה הראשית של הקורס ולא תוקצה לשפה אחרת עד שתוגדר לה שפה או גרסה.',
+  coverageBadge: (lang, ok) => `${lang} ${ok ? '✓' : '✗'}`,
+  neutralBadge: 'כללית',
+};
+
+export const courseLanguages = {
+  title: 'שפות התכנות בקורס',
+  explain: 'אפשר ללמד את אותו קורס ביותר משפה אחת. לכל תלמיד נקבעת שפה, ולכל מטלה שפה אחת.',
+  primary: 'שפה ראשית',
+  add: 'הוספת שפה',
+  choose: 'שפה להוספה',
+  remove: 'הסרה',
+  none: 'כל השפות הנתמכות כבר נוספו.',
+  inUse: 'אי אפשר להסיר את השפה הזו כל עוד יש תלמידים או מטלות שמשתמשים בה.',
+  primaryLocked: 'השפה הראשית אינה ניתנת להסרה.',
+  removeError: 'ההסרה נכשלה.',
+  addError: 'ההוספה נכשלה. נסו שוב.',
+  studentLanguage: 'שפת התלמיד',
+  changeLanguageError: 'אי אפשר להחליף שפה כל עוד התלמיד משויך למטלת טיוטה בשפה אחרת.',
+  choosePlaceholder: 'שפת לימוד',
+};
+
 export const students = {
   title: 'תלמידים',
   subtitle: 'התלמידים שמשויכים אליך',
@@ -122,14 +199,69 @@ export const students = {
   emptyTitle: 'עדיין אין תלמידים',
   emptyBody: 'הזמינו את התלמיד הראשון בטופס שלמעלה.',
   status: { active: 'פעיל', archived: 'בארכיון' },
+  authStatus: { pending: 'ממתין לאישור ההזמנה', no_password: 'טרם קבע סיסמה' },
+  language: 'שפת לימוד',
   inviteErrors: {
-    email_exists: 'כבר קיים משתמש עם האימייל הזה.',
     invalid_email: 'כתובת האימייל אינה תקינה.',
     invalid_name: 'יש להזין שם באורך 2 עד 120 תווים.',
+    invalid_language: 'שפת הלימוד אינה מוגדרת בקורס הזה.',
     forbidden: 'רק מורה יכול להזמין תלמידים.',
     unauthorized: 'פג תוקף ההתחברות. היכנסו מחדש.',
     course_not_found: 'הקורס לא נמצא או שהוא בארכיון. ההזמנה לא נשלחה.',
     enroll_failed: 'הרישום לקורס נכשל, ולכן ההזמנה בוטלה. אפשר לנסות שוב.',
+    link_failed: 'שיוך התלמיד אליך נכשל, ולכן ההזמנה בוטלה. אפשר לנסות שוב.',
+    partial_state: 'ההזמנה נכשלה באמצע ולא הצלחנו לנקות את החשבון שנוצר. אל תיצרו תלמיד חדש: לחצו שוב על "שליחת הזמנה" עם אותו אימייל ואז על "שחזור החשבון".',
+    invite_failed: 'שליחת ההזמנה נכשלה. נסו שוב בעוד רגע.',
+    resend_failed: 'לא הצלחנו לשלוח את המייל. נסו שוב בעוד רגע.',
+    repair_failed: 'שחזור החשבון נכשל. לא בוצע שינוי. נסו שוב.',
+    email_exists_other: 'האימייל הזה כבר רשום במערכת ואינו משויך אליך, ולכן אי אפשר להזמין אותו מכאן.',
+    already_yours: 'התלמיד הזה כבר קיים ברשימת התלמידים שלך.',
+    invite_pending: 'התלמיד הזה כבר הוזמן ועדיין לא אישר את ההזמנה.',
+    password_not_set: 'התלמיד אישר את ההזמנה אבל עדיין לא קבע סיסמה.',
+    needs_repair: 'החשבון של האימייל הזה קיים במערכת אבל חסר לו פרופיל באפליקציה (למשל אחרי מחיקה חלקית). אפשר לשחזר אותו.',
+  },
+  // one-tap follow-ups offered next to some errors
+  inviteActions: {
+    invite_pending: { action: 'resend', label: 'שליחת הזמנה מחדש' },
+    password_not_set: { action: 'resend', label: 'שליחת קישור לקביעת סיסמה' },
+    needs_repair: { action: 'repair', label: 'שחזור החשבון ושליחת קישור' },
+  },
+  inviteResults: {
+    invite_resent: (name) => `ההזמנה נשלחה שוב ל${name}.`,
+    recovery_sent: (name) => `נשלח ל${name} קישור לקביעת סיסמה.`,
+    repaired: (name, mailSent) => (mailSent
+      ? `החשבון של ${name} שוחזר ונשלח אליו קישור לקביעת סיסמה.`
+      : `החשבון של ${name} שוחזר, אבל שליחת המייל נכשלה. אפשר ללחוץ שוב על "שליחת קישור לקביעת סיסמה".`),
+    enrolled_existing: (name) => `${name} כבר בין התלמידים שלך, ונרשם/ה עכשיו לקורס.`,
+  },
+  archiveAction: 'העברה לארכיון',
+  restoreAction: 'שחזור',
+  deleteAction: 'מחיקה לצמיתות',
+  showArchived: 'הצגת תלמידים בארכיון',
+  archiveTitle: (name) => `להעביר את ${name} לארכיון?`,
+  archiveBody: 'התלמיד יוסתר מרשימת התלמידים הפעילים ולא יופיע בהקצאות חדשות. הוא ימשיך לראות את מה שכבר הוקצה לו, וההיסטוריה שלו (הגשות ומשוב) נשמרת ושמו ימשיך להופיע בה. אפשר לשחזר בכל רגע.',
+  archived: (name) => `${name} הועבר/ה לארכיון.`,
+  restored: (name) => `${name} שוחזר/ה.`,
+  archiveError: 'הפעולה נכשלה. נסו שוב.',
+  delete: {
+    title: (name) => `מחיקה לצמיתות של ${name}`,
+    loading: 'בודקים מה יימחק…',
+    intro: 'המחיקה מסירה את החשבון של התלמיד לגמרי, ואי אפשר לבטל אותה. אם אפשר, עדיף להשאיר בארכיון.',
+    willDelete: 'יימחקו:',
+    count: (label, n) => `${label}: ${n}`,
+    labels: { enrollments: 'רישומים לקורסים', assignments: 'מטלות שהוקצו', answers: 'תשובות', submissions: 'הגשות', feedback: 'משובים', notifications: 'התראות' },
+    typeName: (name) => `כדי לאשר, הקלידו את שם התלמיד: ${name}`,
+    typeLabel: 'שם התלמיד',
+    confirm: 'מחיקה לצמיתות',
+    deleted: (name) => `${name} נמחק/ה.`,
+    errors: {
+      shared_student: 'התלמיד משויך גם למורה אחר, ולכן אי אפשר למחוק אותו לצמיתות. אפשר להעביר אותו לארכיון בלבד.',
+      not_found: 'התלמיד לא נמצא.',
+      confirmation_mismatch: 'השם שהוקלד לא תואם.',
+      delete_failed: 'המחיקה נכשלה ולא בוצע שינוי. נסו שוב.',
+      delete_incomplete: 'המחיקה לא הושלמה עד הסוף. אל תנסו ליצור את התלמיד מחדש. פנו לתמיכה עם התאריך והשעה.',
+      generic: 'הפעולה נכשלה. נסו שוב.',
+    },
   },
 };
 
@@ -167,7 +299,7 @@ export const formatDate = (iso) =>
 // Phase 2 — content & question bank
 // ---------------------------------------------------------------------
 export const languages = {
-  java: 'Java', python: 'Python', csharp: 'C#', c: 'C', cpp: 'C++', javascript: 'JavaScript',
+  java: '\u2066Java\u2069', python: '\u2066Python\u2069', csharp: '\u2066C#\u2069', c: '\u2066C\u2069', cpp: '\u2066C++\u2069', javascript: '\u2066JavaScript\u2069',
 };
 
 export const courses = {
@@ -196,6 +328,8 @@ export const courses = {
 };
 
 export const topics = {
+  expand: 'פתיחה',
+  collapse: 'סגירה',
   title: 'מבנה הנושאים',
   explain: 'עד שלוש רמות: יחידה, נושא, תת-נושא.',
   levels: { 1: 'יחידה', 2: 'נושא', 3: 'תת-נושא' },
@@ -290,6 +424,7 @@ export const questionEditor = {
   previewEmpty: 'אין עדיין תוכן לתצוגה.',
   starterCode: 'קוד פתיחה (לא חובה)',
   topicsExplain: 'שיוך לנושאים עוזר לסנן ולעקוב אחר התקדמות.',
+  topicsSelected: (n) => (n === 1 ? 'נבחר אחד' : `נבחרו ${n}`),
   topicsNone: 'לקורס הזה עדיין אין נושאים.',
   hint1: 'רמז',
   hint2: 'רמז נוסף',
@@ -441,6 +576,8 @@ export const assignments = {
     archived_question: 'יש במטלה שאלה שהועברה לארכיון. הסירו אותה או שחזרו אותה במאגר.',
     students_started: 'תלמידים כבר התחילו לעבוד, ולכן אי אפשר להחזיר לטיוטה. אפשר לסגור את המטלה.',
     not_draft: 'המטלה כבר פורסמה.',
+    variants_missing: 'אי אפשר לפרסם: יש שאלות שאין להן גרסה בשפה של המטלה. ראו הפירוט למעלה.',
+    recipient_language_mismatch: 'יש נמענים שלומדים שפה אחרת מזו של המטלה. הסירו אותם או החליפו את שפת המטלה.',
     bad_transition: 'הפעולה לא מתאימה למצב המטלה.',
   },
   // progress
@@ -642,6 +779,7 @@ export const aiReview = {
   replaceText: 'החלפת הטקסט הקיים',
   appendText: 'הוספה בסוף הטקסט',
   cancel: 'ביטול',
+  close: 'סגירה',
   undo: 'שחזור הטקסט הקודם',
   recommendYes: 'ה-AI ממליץ להחזיר לתיקון',
   recommendNo: 'ה-AI לא ממליץ להחזיר לתיקון',

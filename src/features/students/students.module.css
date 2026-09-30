@@ -51,3 +51,13 @@
 @media (max-width: 720px) {
   .inviteForm { grid-template-columns: 1fr; }
 }
+
+.rowArchived { opacity: 0.85; }
+.rowActions { display: inline-flex; gap: var(--space-1); flex-wrap: wrap; justify-content: flex-end; }
+.toggle { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-4); min-height: 44px; color: var(--text-muted); font-size: var(--fs-sm); cursor: pointer; }
+.toggle input { width: 20px; height: 20px; }
+.deleteInfo { display: flex; flex-direction: column; gap: var(--space-3); margin-block: var(--space-3); }
+.deleteList { font-weight: 600; margin: 0; }
+.deleteCounts { margin: 0; padding-inline-start: var(--space-5); color: var(--text-muted); }
+.error p { margin: 0 0 var(--space-2); }
+@media (max-width: 640px) { .row { flex-wrap: wrap; } .rowActions { width: 100%; justify-content: flex-start; } }

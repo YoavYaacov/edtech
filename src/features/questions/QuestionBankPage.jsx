@@ -3,15 +3,16 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { CheckCircle2, FileQuestion, Library, Plus, Search, X } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Badge from '../../components/ui/Badge';
+import CourseGroups from '../../components/ui/CourseGroups';
 import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
-import { fetchCourses, fetchTopics } from '../content/contentApi';
+import { courseLanguageList, fetchCourses, fetchTopics } from '../content/contentApi';
 import { fetchQuestions, LIST_LIMIT } from './questionsApi';
 import { useAsync } from '../../lib/useAsync';
 import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
 import { difficultyTone, statusTone } from './questionTones';
-import { common, errors, flash, formatDate, questionLabels as L, questions as t } from '../../i18n/he';
+import { common, errors, flash, formatDate, questionLabels as L, questions as t, languages as langNames, variants as vt } from '../../i18n/he';
 import styles from './questions.module.css';
 
 const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
@@ -78,6 +79,18 @@ export default function QuestionBankPage() {
 
   const courses = coursesQ.data ?? [];
   const courseName = new Map(courses.map((c) => [c.id, c.title]));
+  const courseById = new Map(courses.map((c) => [c.id, c]));
+
+  // Multi-language courses only: which languages a question is available in (base + variants).
+  function coverage(q) {
+    const course = courseById.get(q.course_id);
+    const langs = courseLanguageList(course);
+    if (langs.length < 2) return null;
+    if (q.is_language_neutral) return <Badge tone="sky">{vt.neutralBadge}</Badge>;
+    const base = q.programming_language || course.programming_language;
+    const have = new Set([base, ...(q.question_variants ?? []).map((x) => x.programming_language)]);
+    return langs.map((l) => <Badge key={l} tone={have.has(l) ? 'mint' : 'butter'}>{vt.coverageBadge(langNames[l] ?? l, have.has(l))}</Badge>);
+  }
   const anyFilter = FILTER_KEYS.some((k) => params.has(k));
   const list = questionsQ.data ?? [];
 
@@ -145,25 +158,31 @@ export default function QuestionBankPage() {
         ) : (
           <>
             <p className={styles.count}>{t.resultCount(list.length)}</p>
-            <ul className={styles.qList}>
-              {list.map((q) => (
-                <li key={q.id}>
-                  <Link to={`/teacher/questions/${q.id}`} state={editorState} className={`${styles.qRow} ${q.status === 'archived' ? styles.dim : ''}`}>
-                    <span className={styles.qTitle}>{q.title}</span>
-                    <span className={styles.qMeta}>
-                      <Badge tone={difficultyTone[q.difficulty]}>{L.difficulty[q.difficulty]}</Badge>
-                      <Badge tone="neutral">
-                        {L.sourceType[q.source_type]}{q.source_year ? ` ${q.source_year}` : ''}
-                      </Badge>
-                      <Badge tone={statusTone[q.status]}>{L.status[q.status]}</Badge>
-                    </span>
-                    <span className={styles.qSub}>
-                      {courseName.get(q.course_id)} · {t.updated} {formatDate(q.updated_at)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <CourseGroups items={list} getId={(q) => q.course_id} getTitle={(q) => courseName.get(q.course_id)}
+              scope="bank" enabled={!f.course && courses.length >= 2}>
+              {(items) => (
+              <ul className={styles.qList}>
+                {items.map((q) => (
+                  <li key={q.id}>
+                    <Link to={`/teacher/questions/${q.id}`} state={editorState} className={`${styles.qRow} ${q.status === 'archived' ? styles.dim : ''}`}>
+                      <span className={styles.qTitle}>{q.title}</span>
+                      <span className={styles.qMeta}>
+                        <Badge tone={difficultyTone[q.difficulty]}>{L.difficulty[q.difficulty]}</Badge>
+                        <Badge tone="neutral">
+                          {L.sourceType[q.source_type]}{q.source_year ? ` ${q.source_year}` : ''}
+                        </Badge>
+                        <Badge tone={statusTone[q.status]}>{L.status[q.status]}</Badge>
+                      {coverage(q)}
+                      </span>
+                      <span className={styles.qSub}>
+                        {courseName.get(q.course_id)} · {t.updated} {formatDate(q.updated_at)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              )}
+            </CourseGroups>
             {list.length >= LIST_LIMIT && <p className={styles.muted}>{t.limitNote(LIST_LIMIT)}</p>}
           </>
         )

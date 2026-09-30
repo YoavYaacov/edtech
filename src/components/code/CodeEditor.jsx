@@ -1,6 +1,7 @@
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
-import { indentUnit } from '@codemirror/language';
+import { indentUnit, StreamLanguage } from '@codemirror/language';
+import { csharp } from '@codemirror/legacy-modes/mode/clike';
 import { EditorView } from '@codemirror/view';
 import styles from './CodeEditor.module.css';
 
@@ -16,7 +17,7 @@ const theme = EditorView.theme({
   '&.cm-focused': { outline: 'none' },
 });
 
-const languageExtensions = { java: [java()] };
+const languageExtensions = { java: [java()], csharp: [StreamLanguage.define(csharp)] };
 
 export default function CodeEditor({ value, onChange, language = 'java', readOnly = false, minHeight = '180px', label }) {
   const extensions = [theme, indentUnit.of('    '), EditorView.lineWrapping, ...(languageExtensions[language] ?? [])];
