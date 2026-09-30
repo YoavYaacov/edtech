@@ -35,7 +35,7 @@ export default function CourseLanguagesPanel({ course, languages, onChanged }) {
   }
 
   return (
-    <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
+    <Collapsible title={t.title} headingLevel={2} tone="sky" className={styles.panelCollapsible}
       storageKey={`course:${course.id}:languages`} defaultOpen={false}
       meta={languages.map((l) => names[l] ?? l).join(' · ')}>
       <p className={styles.muted}>{t.explain}</p>

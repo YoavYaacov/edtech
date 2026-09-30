@@ -118,3 +118,15 @@
 .successNote { color: var(--success); font-size: var(--fs-sm); }
 .neutralRow { display: flex; align-items: flex-start; gap: var(--space-2); min-height: 44px; }
 .neutralRow input { width: 20px; height: 20px; margin-top: 10px; }
+.baseLine { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-2) 0; }
+.copyNote { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--sky-50); color: var(--sky-700); font-size: var(--fs-sm); }
+
+/* picker rendered as the topic tree */
+.topicTreeWrap { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-2); background: var(--surface); max-height: 420px; overflow: auto; }
+.pickerLabel { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-height: 44px; cursor: pointer; min-width: 0; }
+.pickerLabel input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; }
+.pickerTitle { overflow-wrap: anywhere; }
+.pickerOn { background: var(--lavender-50); box-shadow: inset 0 0 0 1.5px var(--lavender-200); }
+.pickerOn .pickerTitle { font-weight: 600; color: var(--lavender-700); }
+
+.variantRow { border-inline-start: 4px solid var(--sky-200); }

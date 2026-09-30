@@ -16,6 +16,7 @@ export function fetchCourses() {
     .from('courses')
     .select(`${COURSE_FIELDS}, topics(count)`)
     .eq('topics.is_archived', false)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 }
 
@@ -142,4 +143,10 @@ export function updateMistakeTag(tagId, patch) {
 // Returns deleted rows; an FK error (23503) means the tag is in use.
 export function deleteMistakeTag(tagId) {
   return supabase.from('mistake_tags').delete().eq('id', tagId).select('id');
+}
+
+// Persistent teacher-defined course order. Ids = the courses being arranged, in the new order;
+// the server re-uses the slots those courses already occupy, so hidden (archived) courses keep their place.
+export function reorderCourses(orderedIds) {
+  return supabase.rpc('reorder_courses', { p_ids: orderedIds });
 }

@@ -61,7 +61,7 @@ test("N. existing app untouched: from src/, ONLY the Round 1B client module + it
   assert.equal(mig[i - 1], "20260926000100_notifications.sql");
   assert.deepEqual(mig.slice(i + 1), [
     "20260930000100_student_auth_hardening.sql", "20260930000200_course_languages.sql",
-    "20260930000300_question_variants.sql", "20260930000400_language_resolution.sql"]);
+    "20260930000300_question_variants.sql", "20260930000400_language_resolution.sql", "20261001000100_course_sort_order.sql"]);
   for (const f of mig.slice(i + 1)) assert.ok(!/(alter|drop|create|truncate)\s+(table|policy|trigger|index)[^;]*ai_runs/i.test(readFileSync(join(ROOT, "supabase/migrations", f), "utf8")), f);
 });
 

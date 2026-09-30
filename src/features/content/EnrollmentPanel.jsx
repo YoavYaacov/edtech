@@ -3,6 +3,7 @@ import { UserMinus, UserPlus, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Collapsible from '../../components/ui/Collapsible';
 import Select from '../../components/ui/Select';
+import SegmentedControl from '../../components/ui/SegmentedControl';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import InviteStudentForm from '../students/InviteStudentForm';
 import { enrollStudent, fetchEnrollments, setEnrollmentLanguage, unenrollStudent } from './contentApi';
@@ -94,8 +95,8 @@ export default function EnrollmentPanel({ courseId, languages = [], primaryLangu
                 <li key={e.student_id} className={styles.simpleRow}>
                   <span>{e.student?.full_name}</span>
                   {multi && (
-                    <Select label={cl.studentLanguage} value={e.programming_language ?? ''} disabled={busy}
-                      onChange={(ev) => changeLanguage(e.student_id, ev.target.value)}
+                    <SegmentedControl label={`${cl.studentLanguage}: ${e.student?.full_name ?? ''}`} value={e.programming_language ?? ''} disabled={busy}
+                      onChange={(lang) => changeLanguage(e.student_id, lang)}
                       options={languages.map((l) => ({ value: l, label: names[l] ?? l }))} />
                   )}
                   <Button variant="ghost" icon={UserMinus} disabled={busy}

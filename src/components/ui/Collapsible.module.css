@@ -1,5 +1,8 @@
 .root { min-width: 0; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); }
+.card { background: var(--surface); border: 1px solid var(--border); border-inline-start: 4px solid var(--lavender-200); border-radius: var(--radius-lg, 16px); }
+.root[data-open].card { border-color: var(--lavender-200); background: linear-gradient(180deg, var(--lavender-50) 0, var(--surface) 64px); }
+.tone-sky.card { border-inline-start-color: var(--sky-200); }
+.tone-sky[data-open].card { border-color: var(--sky-200); background: linear-gradient(180deg, var(--sky-50) 0, var(--surface) 64px); }
 .plain { border: 0; background: transparent; }
 .header { display: flex; align-items: center; gap: var(--space-2); }
 .heading { margin: 0; font-size: inherit; font-weight: inherit; flex: 1; min-width: 0; }
@@ -9,7 +12,7 @@
   color: var(--text); font: inherit; font-weight: 600; text-align: start; cursor: pointer;
 }
 .toggle:disabled { cursor: default; }
-.toggle:hover:not(:disabled) { background: var(--surface-sunken); }
+.toggle:hover:not(:disabled) { background: var(--lavender-50); }
 .toggle:focus-visible { outline: 3px solid var(--focus, var(--primary)); outline-offset: 2px; }
 .title { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .meta { color: var(--text-muted); font-size: var(--fs-sm); font-weight: 400; }
@@ -18,7 +21,12 @@
 [dir='rtl'] .chevron { transform: rotate(90deg); }
 [dir='ltr'] .chevron { transform: rotate(-90deg); }
 .root[data-open] .chevron { transform: rotate(0); }
-.actions { padding-inline-end: var(--space-3); display: flex; gap: var(--space-2); }
+.actions { padding-inline-end: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex: none; }
+/* a header with an action button: give the button room inside the card (vertical padding + side inset) */
+.hasActions { padding-block: var(--space-2); flex-wrap: wrap; }
+.hasActions .toggle { min-height: 44px; }
+.hasActions .heading { flex: 1 1 140px; }
+.hasActions .actions { padding-inline-start: var(--space-3); }
 .body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 180ms ease; }
 .root[data-open] > .body { grid-template-rows: 1fr; }
 .inner { overflow: hidden; min-height: 0; padding-inline: var(--space-4); }

@@ -21,7 +21,7 @@ export function LanguagePanel({ assignment, languages, onChanged }) {
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="lang-title">
+    <section className={`${styles.panel} ${styles.langPanel}`} aria-labelledby="lang-title">
       <h2 id="lang-title" className={styles.panelTitle}>{al.label}</h2>
       <p className={styles.muted}>{al.hint}</p>
       <div className={styles.langSelect}>

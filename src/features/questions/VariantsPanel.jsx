@@ -12,16 +12,18 @@ import styles from './questions.module.css';
 
 const hintOf = (hints, level) => (Array.isArray(hints) ? hints.find((h) => h.level === level)?.content_md ?? '' : '');
 
-function VariantForm({ questionId, language, existing, baseHints, onSaved, onCancel }) {
-  const [v, setV] = useState({
-    body_md: existing?.body_md ?? '',
-    starter_code: existing?.starter_code ?? '',
-    solution_code: existing?.solution_code ?? '',
-    explanation_md: existing?.explanation_md ?? '',
-    // hints: a new variant is prefilled with the base's hints (editable); an existing one keeps its own override
-    hint1: existing ? hintOf(existing.hints, 1) : baseHints[0] ?? '',
-    hint2: existing ? hintOf(existing.hints, 2) : baseHints[1] ?? '',
-  });
+// COPY-ON-CREATE: a NEW variant starts as a full copy of the (saved) base, so the teacher only changes the differences.
+// An EXISTING variant opens as stored (null body/hints = "inherit from base" are shown as the current base text).
+// Later edits of the base never overwrite a variant: the copy is saved as the variant's own content.
+function VariantForm({ questionId, language, existing, base, baseLanguage, onSaved, onCancel }) {
+  const [v, setV] = useState(() => ({
+    body_md: existing ? (existing.body_md ?? base.body_md) : base.body_md,
+    starter_code: existing ? existing.starter_code : base.starter_code,
+    solution_code: existing ? existing.solution_code : base.solution_code,
+    explanation_md: existing ? existing.explanation_md : base.explanation_md,
+    hint1: existing ? (existing.hints ? hintOf(existing.hints, 1) : base.hint1) : base.hint1,
+    hint2: existing ? (existing.hints ? hintOf(existing.hints, 2) : base.hint2) : base.hint2,
+  }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (e) => setV((x) => ({ ...x, [k]: e?.target ? e.target.value : e }));
@@ -43,6 +45,7 @@ function VariantForm({ questionId, language, existing, baseHints, onSaved, onCan
 
   return (
     <div className={styles.variantForm}>
+      {!existing && <p className={styles.copyNote} role="note">{t.copiedFromBase(names[baseLanguage] ?? baseLanguage, names[language] ?? language)}</p>}
       <MarkdownField label={t.body} rows={4} value={v.body_md} onChange={set('body_md')} />
       <div className={styles.codeField}>
         <span className={styles.fieldLabel}>{t.starter}</span>
@@ -68,7 +71,7 @@ function VariantForm({ questionId, language, existing, baseHints, onSaved, onCan
 
 // Manual variants of a saved question, one row per OTHER language of the course.
 // baseLanguage: the language the base question is written in.
-export default function VariantsPanel({ questionId, languages, baseLanguage, baseHints, onChanged, focusLanguage }) {
+export default function VariantsPanel({ questionId, languages, baseLanguage, base, onChanged, focusLanguage }) {
   const [rows, setRows] = useState(null);
   const [editing, setEditing] = useState(focusLanguage ?? null);
   const [message, setMessage] = useState('');
@@ -94,9 +97,15 @@ export default function VariantsPanel({ questionId, languages, baseLanguage, bas
   }
 
   return (
-    <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsibleEditor}
+    <Collapsible title={t.title} headingLevel={2} tone="sky" className={styles.panelCollapsibleEditor}
       storageKey={`variants:${questionId}`} defaultOpen forceOpen={editing != null}>
       <p className={styles.muted}>{t.explain}</p>
+      <p className={styles.baseLine}>
+        <span>{t.base}:</span> <Badge tone="sky">{names[baseLanguage] ?? baseLanguage}</Badge>
+        {others.map((l) => (rows ?? []).some((r) => r.programming_language === l)
+          ? <Badge key={l} tone="mint">{t.coverageBadge(names[l] ?? l, true)}</Badge>
+          : <Badge key={l} tone="butter">{t.coverageBadge(names[l] ?? l, false)}</Badge>)}
+      </p>
       {rows === null ? <LoadingState /> : (
         <ul className={styles.variantList}>
           {others.map((lang) => {
@@ -118,7 +127,7 @@ export default function VariantsPanel({ questionId, languages, baseLanguage, bas
                   </span>
                 </div>
                 {editing === lang && (
-                  <VariantForm questionId={questionId} language={lang} existing={row} baseHints={baseHints}
+                  <VariantForm questionId={questionId} language={lang} existing={row} base={base} baseLanguage={baseLanguage}
                     onCancel={() => setEditing(null)}
                     onSaved={() => { setEditing(null); setMessage(t.saved); load(); }} />
                 )}

@@ -88,6 +88,7 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   if (req.method !== "POST") return fail("method_not_allowed");
   const store = deps.store;
   if (!store || !deps.siteUrl) return fail("server_misconfigured");
+  const st: Store = store; // non-null alias for the nested helpers below (narrowing does not reach them)
   const redirectTo = `${deps.siteUrl.replace(/\/$/, "")}/set-password`;
 
   // 1. identity from the JWT; 2. role from the DB
@@ -142,7 +143,7 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   // ---- brand-new e-mail: invite, then link/enroll in ONE transaction, with a VERIFIED rollback ----
   if (!found) {
     if (action !== "invite") return fail("invalid_action");
-    const inv = await store.inviteUser(email, fullName, redirectTo).catch(() => ({ ok: false, kind: "failed" } as const));
+    const inv = await st.inviteUser(email, fullName, redirectTo).catch(() => ({ ok: false, kind: "failed" } as const));
     if (!inv.ok) return inv.kind === "exists" ? fail("email_exists_other") : (log({ event: "invite_student", stage: "invite_failed" }), fail("invite_failed"));
     const res = await provision(inv.userId, false).catch(() => ({ ok: false, code: "exception" } as const));
     if (res.ok) return send({ status: "invited", student_id: inv.userId, enrolled: courseId !== null }, 200);
@@ -190,14 +191,14 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   return fail("already_yours");
 
   async function resendInvite(): Promise<boolean> {
-    const r = await store.inviteUser(email, fullName, redirectTo).catch(() => ({ ok: false, kind: "failed" } as const));
+    const r = await st.inviteUser(email, fullName, redirectTo).catch(() => ({ ok: false, kind: "failed" } as const));
     return r.ok;
   }
 
   // Undo a half-created user. NEVER pretend the system is clean when it is not.
   async function rollback(userId: string, code: "link_failed" | "enroll_failed") {
-    let removed = await store.deleteUser(userId).catch(() => false);
-    if (!removed) removed = await store.deleteUser(userId).catch(() => false); // one retry
+    let removed = await st.deleteUser(userId).catch(() => false);
+    if (!removed) removed = await st.deleteUser(userId).catch(() => false); // one retry
     if (removed) {
       log({ event: "invite_student", stage: "rolled_back", code });
       return fail(code);

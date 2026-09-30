@@ -165,6 +165,15 @@ export default function QuestionEditorPage() {
       <Link to={bankPath} className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.questionBank}</Link>
       <PageHeader title={isNew ? t.newTitle : values.title || t.editTitle} />
 
+      {multi && !values.is_language_neutral && (
+        isNew
+          ? <p className={styles.muted}>{vt.saveFirst}</p>
+          : <VariantsPanel questionId={questionId} languages={courseLangs} baseLanguage={baseLanguage}
+              base={{ body_md: saved.body_md, starter_code: saved.starter_code, solution_code: saved.solution_code,
+                explanation_md: saved.explanation_md, hint1: saved.hint1, hint2: saved.hint2 }}
+              focusLanguage={search.get('variant')} />
+      )}
+
       <section className={styles.panel} aria-labelledby="sec-details">
         <h2 id="sec-details" className={styles.panelTitle}>{t.sectionDetails}</h2>
         <TextField label={t.titleLabel} value={values.title} onChange={set('title')} maxLength={300} required />
@@ -252,13 +261,6 @@ export default function QuestionEditorPage() {
         )}
         <MarkdownField label={t.explanation} rows={4} value={values.explanation_md} onChange={set('explanation_md')} />
       </section>
-
-      {multi && !values.is_language_neutral && (
-        isNew
-          ? <p className={styles.muted}>{vt.saveFirst}</p>
-          : <VariantsPanel questionId={questionId} languages={courseLangs} baseLanguage={baseLanguage}
-              baseHints={[values.hint1, values.hint2]} focusLanguage={search.get('variant')} />
-      )}
 
       <section className={`${styles.panel} ${styles.private}`} aria-labelledby="sec-notes">
         <h2 id="sec-notes" className={styles.panelTitle}><EyeOff size={18} aria-hidden="true" />{t.sectionNotes}</h2>

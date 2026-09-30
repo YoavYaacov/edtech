@@ -12,7 +12,7 @@ import styles from './Collapsible.module.css';
 //   heading     h-level of the wrapper (default 3)
 export default function Collapsible({
   title, meta, actions, children, storageKey, defaultOpen = true, forceOpen = false,
-  headingLevel = 3, className = '', bodyClassName = '', variant = 'card',
+  headingLevel = 3, className = '', bodyClassName = '', variant = 'card', tone = 'lavender',
 }) {
   const [stored, setOpen] = useCollapsed(storageKey, defaultOpen);
   const open = forceOpen || stored;
@@ -20,8 +20,8 @@ export default function Collapsible({
   const Heading = `h${headingLevel}`;
 
   return (
-    <section className={`${styles.root} ${styles[variant]} ${className}`} data-open={open || undefined}>
-      <div className={styles.header}>
+    <section className={`${styles.root} ${styles[variant]} ${styles[`tone-${tone}`] ?? ''} ${className}`} data-open={open || undefined}>
+      <div className={`${styles.header} ${actions ? styles.hasActions : ''}`}>
         <Heading className={styles.heading}>
           <button type="button" className={styles.toggle} aria-expanded={open} aria-controls={bodyId}
             disabled={forceOpen} onClick={() => setOpen((o) => !o)}>

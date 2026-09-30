@@ -1,0 +1,11 @@
+.group { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--sky-50); border: 1px solid var(--sky-200); flex: none; }
+/* 32px pill; the ::before enlarges the hit area to 44px without growing the row */
+.option {
+  position: relative; min-width: 52px; height: 32px; padding: 0 var(--space-3); border: 0; border-radius: 999px;
+  background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer;
+}
+.option::before { content: ''; position: absolute; inset: -6px -2px; }
+.option:hover:not(:disabled):not(.on) { color: var(--sky-700); background: rgba(255, 255, 255, 0.7); }
+.option.on { background: var(--surface); color: var(--sky-700); font-weight: 600; box-shadow: 0 1px 2px rgba(42, 110, 158, 0.25); }
+.option:focus-visible { outline: 3px solid var(--focus, var(--primary)); outline-offset: 1px; z-index: 1; }
+.option:disabled { cursor: not-allowed; opacity: 0.6; }
