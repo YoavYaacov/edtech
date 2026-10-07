@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, FileQuestion, Library, Plus, Search, X } from 'lucide-react';
+import { CheckCircle2, FileQuestion, FileUp, Library, Plus, Search, X } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Badge from '../../components/ui/Badge';
 import CourseGroups from '../../components/ui/CourseGroups';
@@ -12,7 +12,7 @@ import { fetchQuestions, LIST_LIMIT } from './questionsApi';
 import { useAsync } from '../../lib/useAsync';
 import { buildTree, descendantIds, flattenTree } from '../../lib/topicTree';
 import { difficultyTone, statusTone } from './questionTones';
-import { common, errors, flash, formatDate, questionLabels as L, questions as t, languages as langNames, variants as vt } from '../../i18n/he';
+import { common, errors, flash, formatDate, imports as importT, questionLabels as L, questions as t, languages as langNames, variants as vt } from '../../i18n/he';
 import styles from './questions.module.css';
 
 const toOptions = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
@@ -107,8 +107,14 @@ export default function QuestionBankPage() {
   return (
     <>
       <PageHeader title={t.title} subtitle={t.subtitle}
-        actions={<Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} state={editorState} className={styles.linkButton}>
-          <Plus size={18} aria-hidden="true" />{t.newQuestion}</Link>} />
+        actions={(
+          <>
+            <Link to={`/teacher/questions/import${f.course ? `?course=${f.course}` : ''}`} className={styles.linkButton}>
+              <FileUp size={18} aria-hidden="true" />{importT.openFromBank}</Link>
+            <Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} state={editorState} className={styles.linkButton}>
+              <Plus size={18} aria-hidden="true" />{t.newQuestion}</Link>
+          </>
+        )} />
 
       {flashMsg && (
         <div className={styles.flash} role="status">

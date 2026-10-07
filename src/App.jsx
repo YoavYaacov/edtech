@@ -17,6 +17,9 @@ import { LoadingState } from './components/ui/States';
 // Heavy teacher-only pages (code editor, markdown) load on demand.
 const QuestionBankPage = lazy(() => import('./features/questions/QuestionBankPage'));
 const QuestionEditorPage = lazy(() => import('./features/questions/QuestionEditorPage'));
+const ImportsListPage = lazy(() => import('./features/imports/ImportsListPage'));
+const NewImportPage = lazy(() => import('./features/imports/NewImportPage'));
+const ImportRunPage = lazy(() => import('./features/imports/ImportRunPage'));
 const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPage'));
 const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
@@ -40,6 +43,9 @@ export default function App() {
             <Route path="courses" element={<CoursesPage />} />
             <Route path="courses/:courseId" element={<CoursePage />} />
             <Route path="questions" element={<QuestionBankPage />} />
+            <Route path="questions/import" element={<ImportsListPage />} />
+            <Route path="questions/import/new" element={<NewImportPage />} />
+            <Route path="questions/import/:importId" element={<ImportRunPage />} />
             <Route path="questions/new" element={<QuestionEditorPage key="new" />} />
             <Route path="questions/:questionId" element={<QuestionEditorPage />} />
             <Route path="assignments" element={<AssignmentsPage />} />
