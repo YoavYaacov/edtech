@@ -12,6 +12,7 @@ import MarkdownField from '../../components/markdown/MarkdownField';
 import TopicPicker from './TopicPicker';
 import { fetchQuestion, saveQuestion } from './questionsApi';
 import VariantsPanel from './VariantsPanel';
+import SourceCard from './SourceCard';
 import { courseLanguageList, fetchCourses, fetchTopics } from '../content/contentApi';
 import { useAsync } from '../../lib/useAsync';
 import { common, errors, flash, languages, nav, questionEditor as t, questionLabels as L, variants as vt } from '../../i18n/he';
@@ -164,6 +165,8 @@ export default function QuestionEditorPage() {
     <form onSubmit={handleSave} noValidate className={styles.editor}>
       <Link to={bankPath} className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.questionBank}</Link>
       <PageHeader title={isNew ? t.newTitle : values.title || t.editTitle} />
+
+      {!isNew && <SourceCard questionId={questionId} />}
 
       {multi && !values.is_language_neutral && (
         isNew

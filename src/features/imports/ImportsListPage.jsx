@@ -7,7 +7,7 @@ import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
 import { useAsync } from '../../lib/useAsync';
-import { formatDateTime, imports as t } from '../../i18n/he';
+import { formatDateTime, importReview as rv, imports as t } from '../../i18n/he';
 import { archiveImport, countCandidates, fetchImports } from './importsApi';
 import qStyles from '../questions/questions.module.css';
 import styles from './imports.module.css';
@@ -60,6 +60,7 @@ export default function ImportsListPage() {
                   <div className={styles.rowSub}>{c.total > 0 ? t.counts(c.total, c.pending, c.approved) : t.noCandidates}</div>
                 </div>
                 <div className={styles.rowActions}>
+                  {c.pending > 0 && <Button onClick={() => navigate(`/teacher/questions/import/${imp.id}/review`)}>{rv.openReview}</Button>}
                   <Button variant="secondary" onClick={() => navigate(`/teacher/questions/import/${imp.id}`)}>{t.open}</Button>
                   <Button variant="ghost" onClick={() => setToArchive(imp)}>{t.archive}</Button>
                 </div>

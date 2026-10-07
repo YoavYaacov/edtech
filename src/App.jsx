@@ -19,6 +19,7 @@ const QuestionBankPage = lazy(() => import('./features/questions/QuestionBankPag
 const QuestionEditorPage = lazy(() => import('./features/questions/QuestionEditorPage'));
 const ImportsListPage = lazy(() => import('./features/imports/ImportsListPage'));
 const NewImportPage = lazy(() => import('./features/imports/NewImportPage'));
+const ImportReviewPage = lazy(() => import('./features/imports/ImportReviewPage'));
 const ImportRunPage = lazy(() => import('./features/imports/ImportRunPage'));
 const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPage'));
 const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="questions/import" element={<ImportsListPage />} />
             <Route path="questions/import/new" element={<NewImportPage />} />
             <Route path="questions/import/:importId" element={<ImportRunPage />} />
+            <Route path="questions/import/:importId/review" element={<ImportReviewPage />} />
             <Route path="questions/new" element={<QuestionEditorPage key="new" />} />
             <Route path="questions/:questionId" element={<QuestionEditorPage />} />
             <Route path="assignments" element={<AssignmentsPage />} />

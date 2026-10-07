@@ -139,3 +139,10 @@
 .aiLoading { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-2) 0; }
 .baseCompare summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--primary); }
 .baseCompare pre { margin: 0 0 var(--space-2); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); max-height: 200px; overflow: auto; }
+
+/* provenance card (R1B-2) */
+.sourceList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-sm); }
+.sourceText {
+  margin: 0; padding: var(--space-3); max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--surface-sunken); border-radius: var(--radius-md); font: inherit; font-size: var(--fs-sm); line-height: 1.7;
+}

@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { LogIn, Mail } from 'lucide-react';
 import AuthLayout from './AuthLayout';
 import { useAuth } from './AuthProvider';
+import { isNarrowScreen, postLoginPath } from './postLogin';
 import Button from '../../components/ui/Button';
 import TextField from '../../components/ui/TextField';
 import { LoadingState } from '../../components/ui/States';
@@ -21,7 +22,7 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
 
   if (isInitializing) return <LoadingState fullPage />;
-  if (session) return <Navigate to={location.state?.from ?? '/'} replace />;
+  if (session) return <Navigate to={postLoginPath(location.state?.from, { narrow: isNarrowScreen() })} replace />;
 
   async function handleLogin(e) {
     e.preventDefault();

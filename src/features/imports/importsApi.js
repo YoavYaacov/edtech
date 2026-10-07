@@ -26,7 +26,7 @@ export function fetchImport(importId) {
   return supabase
     .from('question_imports')
     .select('id, course_id, source_name, source_type, source_year, status, failure_code, archived_at, created_at, courses(title), '
-      + 'import_files(id, original_name, page_count, size_bytes, sha256)')
+      + 'import_files(id, original_name, page_count, size_bytes, sha256, storage_path)')
     .eq('id', importId)
     .maybeSingle();
 }
@@ -89,3 +89,35 @@ export async function finalizeUpload({ importId, storagePath, originalName, size
 
 export const archiveImport = (importId) => supabase.rpc('archive_import', { p_import_id: importId });
 export const retryFailedChunks = (importId) => supabase.rpc('retry_import_chunks', { p_import_id: importId });
+
+// ---- R1B-2: review ----
+// Full candidates of one import (the hard cap per import is 60, so this is a small result).
+export function fetchCandidates(importId) {
+  return supabase
+    .from('import_candidates')
+    .select('id, ordinal, chunk_id, source_pages, source_label, source_text, proposal, draft, field_origins, flags, '
+      + 'duplicate_of_question_id, duplicate_score, review_status, approved_question_id, created_at')
+    .eq('import_id', importId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+}
+
+export const saveCandidateDraft = (candidateId, draft) => supabase.rpc('save_candidate_draft', { p_candidate_id: candidateId, p_draft: draft });
+export const rejectCandidate = (candidateId) => supabase.rpc('reject_import_candidate', { p_candidate_id: candidateId });
+export const approveCandidate = (candidateId, acknowledge) => supabase.rpc('approve_import_candidate', { p_candidate_id: candidateId, p_acknowledge: Boolean(acknowledge) });
+
+// The owner's private bucket: the PDF is read through the teacher's own session (select policy on the own folder).
+export async function downloadSource(path) {
+  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  if (error || !data) return { buffer: null, error: error ?? new Error('empty') };
+  return { buffer: await data.arrayBuffer(), error: null };
+}
+
+// Read-only provenance card of a question that came from an import (null when it did not).
+export function fetchProvenance(questionId) {
+  return supabase
+    .from('question_provenance')
+    .select('question_id, import_id, file_name, source_pages, source_label, source_text, extraction_kind, flags, model, prompt_version, teacher_edited, approved_at')
+    .eq('question_id', questionId)
+    .maybeSingle();
+}

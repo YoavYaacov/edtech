@@ -109,7 +109,7 @@ export default function QuestionBankPage() {
       <PageHeader title={t.title} subtitle={t.subtitle}
         actions={(
           <>
-            <Link to={`/teacher/questions/import${f.course ? `?course=${f.course}` : ''}`} className={styles.linkButton}>
+            <Link to={`/teacher/questions/import/new${f.course ? `?course=${f.course}` : ''}`} className={styles.linkButton}>
               <FileUp size={18} aria-hidden="true" />{importT.openFromBank}</Link>
             <Link to={`/teacher/questions/new${f.course ? `?course=${f.course}` : ''}`} state={editorState} className={styles.linkButton}>
               <Plus size={18} aria-hidden="true" />{t.newQuestion}</Link>

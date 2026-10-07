@@ -5,11 +5,12 @@ import PageHeader from '../../components/ui/PageHeader';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
-import { imports as t } from '../../i18n/he';
+import { importReview as rv, imports as t } from '../../i18n/he';
 import {
   archiveImport, fetchCandidatesSummary, fetchChunks, fetchImport, fetchSameFileImports, retryFailedChunks,
 } from './importsApi';
 import { computeProgress, titleOfCandidate } from './importProgress';
+import { LIMITS } from './pdfPrecheck';
 import { useImportDriver } from './useImportDriver';
 import qStyles from '../questions/questions.module.css';
 import styles from './imports.module.css';
@@ -147,6 +148,12 @@ export default function ImportRunPage() {
           {!running && <Button variant="secondary" onClick={retryFailed}>{t.run.retryFailed}</Button>}
         </section>
       )}
+      {cands.length >= LIMITS.maxCandidates && (
+        <section className={`${styles.card} ${styles.warn}`} role="status">
+          <h2 className={styles.cardTitle}><AlertTriangle size={18} aria-hidden="true" /> {rv.limitTitle}</h2>
+          <p>{rv.limitBody(LIMITS.maxCandidates)}</p>
+        </section>
+      )}
       {prog.hasMissing && (
         <section className={`${styles.card} ${styles.warn}`}>
           <h2 className={styles.cardTitle}><AlertTriangle size={18} aria-hidden="true" /> {t.run.missingTitle}</h2>
@@ -157,11 +164,17 @@ export default function ImportRunPage() {
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t.run.candidatesTitle} ({cands.length})</h2>
         <p className={styles.hint}>{t.run.candidatesBody}</p>
+        {cands.length > 0 && (
+          <div className={styles.formActions}>
+            <Link to={`/teacher/questions/import/${importId}/review`} className={qStyles.linkButton}>
+              {rv.openReviewCount(cands.filter((c) => c.review_status === 'pending').length)}</Link>
+          </div>
+        )}
         {cands.length === 0 ? <p className={styles.hint}>{t.run.candidatesEmpty}</p> : (
           <ul className={styles.candList}>
             {cands.map((c) => (
               <li key={c.id} className={styles.cand}>
-                <div className={styles.candTitle}>{titleOfCandidate(c) || t.run.candidateUntitled}</div>
+                <Link to={`/teacher/questions/import/${importId}/review?c=${c.id}`} className={styles.candTitle}>{titleOfCandidate(c) || t.run.candidateUntitled}</Link>
                 <div className={styles.rowMeta}>
                   <span>{t.run.candidatePages(c.source_pages)}</span>
                   {c.source_label && <span dir="auto">{c.source_label}</span>}
