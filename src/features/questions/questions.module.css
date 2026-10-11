@@ -32,7 +32,7 @@
 }
 .qRow:hover { text-decoration: none; border-color: var(--lavender-200); background: var(--lavender-50); }
 .qTitle { font-weight: 500; }
-.qMeta { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
+.qMeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); justify-content: flex-end; }
 .qSub { grid-column: 1 / -1; font-size: var(--fs-xs); color: var(--text-muted); }
 
 /* editor */

@@ -1,9 +1,12 @@
 .badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--fs-xs); font-weight: 500; line-height: 1.5;
-  padding: 1px 10px; border-radius: 999px; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  box-sizing: border-box; height: 22px; max-width: 100%; flex: none;
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1;
+  padding: 0 10px; border-radius: 999px; white-space: nowrap; vertical-align: middle;
   background: var(--surface-sunken); color: var(--text-muted);
 }
+/* the text is its own bidi island, so a Hebrew label with a year or a language name never changes the tag's height */
+.text { unicode-bidi: isolate; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .badge[data-tone='lavender'] { background: var(--lavender-50); color: var(--lavender-700); }
 .badge[data-tone='sky']      { background: var(--sky-50);      color: var(--sky-700); }
 .badge[data-tone='mint']     { background: var(--mint-50);     color: var(--mint-700); }

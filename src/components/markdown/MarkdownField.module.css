@@ -27,3 +27,14 @@
 /* Each line takes its direction from its first strong character:
    Hebrew lines stay RTL, code lines (null → 30 …) render LTR. */
 .textarea { unicode-bidi: plaintext; }
+
+/* ---- R1B-3: edit / preview switch ---- */
+.modes { margin-inline-start: auto; display: inline-flex; gap: 2px; padding: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+.modes button { border: none; background: transparent; color: var(--text-muted); font-size: var(--fs-xs); padding: 0 12px; height: 28px; border-radius: 999px; cursor: pointer; }
+.modes button.modeOn { background: var(--lavender-50); color: var(--lavender-700); font-weight: 600; }
+.textarea[hidden] { display: none; }
+.preview { padding: var(--space-3) var(--space-4); background: var(--surface); }
+.previewEmpty { margin: 0; color: var(--text-muted); }
+.previewMath :global(.katex), .previewMath :global(.katex-error) { cursor: pointer; border-radius: 4px; }
+.previewMath :global(.katex):hover { background: var(--lavender-50); }
+.panelLoading { margin: var(--space-2); color: var(--text-muted); }

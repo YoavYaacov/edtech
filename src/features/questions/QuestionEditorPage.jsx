@@ -7,13 +7,13 @@ import TextField from '../../components/ui/TextField';
 import Select from '../../components/ui/Select';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import CodeEditor from '../../components/code/CodeEditor';
-import Markdown from '../../components/markdown/Markdown';
 import MarkdownField from '../../components/markdown/MarkdownField';
 import TopicPicker from './TopicPicker';
-import { fetchQuestion, saveQuestion } from './questionsApi';
+import { courseHasCodeQuestions, fetchQuestion, saveQuestion } from './questionsApi';
 import VariantsPanel from './VariantsPanel';
 import SourceCard from './SourceCard';
 import { courseLanguageList, fetchCourses, fetchTopics } from '../content/contentApi';
+import { showsProgrammingLanguage } from '../content/courseKind';
 import { useAsync } from '../../lib/useAsync';
 import { common, errors, flash, languages, nav, questionEditor as t, questionLabels as L, variants as vt } from '../../i18n/he';
 import styles from './questions.module.css';
@@ -75,7 +75,6 @@ export default function QuestionEditorPage() {
 
   const [values, setValues] = useState(null);
   const [saved, setSaved] = useState(null); // snapshot for dirty check
-  const [tab, setTab] = useState('write');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -97,6 +96,9 @@ export default function QuestionEditorPage() {
   const topicsQ = useAsync(
     () => (values?.course_id ? fetchTopics(values.course_id) : Promise.resolve({ data: [], error: null })),
     [values?.course_id]);
+
+  // Fails open: while loading, or if the check fails, the field stays visible (only a data-proven non-programming course hides it).
+  const codeUsageQ = useAsync(() => courseHasCodeQuestions(values?.course_id), [values?.course_id]);
 
   const dirty = useMemo(() => values && saved && JSON.stringify(values) !== JSON.stringify(saved), [values, saved]);
 
@@ -160,6 +162,10 @@ export default function QuestionEditorPage() {
   // A question without a language counts as the course's primary language (legacy "unclassified").
   const baseLanguage = values.programming_language || course?.programming_language || '';
   const lang = baseLanguage || 'java';
+  const showLanguage = showsProgrammingLanguage(course, {
+    hasCodeQuestions: codeUsageQ.status === 'ready' ? Boolean(codeUsageQ.data) : true,
+    questionLanguage: values.programming_language, neutral: values.is_language_neutral,
+  });
 
   return (
     <form onSubmit={handleSave} noValidate className={styles.editor}>
@@ -184,8 +190,10 @@ export default function QuestionEditorPage() {
           <Select label={t.course} value={values.course_id} onChange={changeCourse} options={courseOptions}
             placeholder={values.course_id ? undefined : '—'} hint={isNew ? undefined : t.courseChangeNote} />
           <Select label={t.type} value={values.question_type} onChange={set('question_type')} options={toOptions(L.questionType)} />
-          <Select label={t.language} value={values.is_language_neutral ? '' : values.programming_language} onChange={set('programming_language')}
-            disabled={values.is_language_neutral} options={toOptions(languages)} placeholder={common.none} />
+          {showLanguage && (
+            <Select label={t.language} value={values.is_language_neutral ? '' : values.programming_language} onChange={set('programming_language')}
+              disabled={values.is_language_neutral} options={toOptions(languages)} placeholder={common.none} />
+          )}
           <Select label={t.difficulty} value={values.difficulty} onChange={set('difficulty')} options={toOptions(L.difficulty)} />
           <Select label={t.status} value={values.status} onChange={set('status')} options={toOptions(L.status)} />
           <Select label={t.source} value={values.source_type} onChange={set('source_type')} options={toOptions(L.sourceType)} />
@@ -209,24 +217,9 @@ export default function QuestionEditorPage() {
       <section className={styles.panel} aria-labelledby="sec-content">
         <div className={styles.panelHead}>
           <h2 id="sec-content" className={styles.panelTitle}>{t.sectionContent}</h2>
-          <div className={styles.tabs} role="tablist">
-            <button type="button" role="tab" aria-selected={tab === 'write'} className={tab === 'write' ? styles.tabOn : ''}
-              onClick={() => setTab('write')}>{t.write}</button>
-            <button type="button" role="tab" aria-selected={tab === 'preview'} className={tab === 'preview' ? styles.tabOn : ''}
-              onClick={() => setTab('preview')}>{t.preview}</button>
-          </div>
         </div>
-        {tab === 'write' ? (
-          <MarkdownField label={t.body} hint={t.bodyHint} rows={10} value={values.body_md} onChange={set('body_md')} />
-        ) : (
-          <div className={styles.preview}>
-            <Markdown empty={<p className={styles.muted}>{t.previewEmpty}</p>}>{values.body_md}</Markdown>
-            {hasCode && values.starter_code.trim() && (
-              <CodeEditor value={values.starter_code} language={lang} readOnly minHeight="60px" label={t.starterCode} />
-            )}
-          </div>
-        )}
-        {hasCode && tab === 'write' && (
+        <MarkdownField label={t.body} hint={t.bodyHint} rows={10} value={values.body_md} onChange={set('body_md')} />
+        {hasCode && (
           <div className={styles.codeField}>
             <span className={styles.fieldLabel}>{t.starterCode}</span>
             <CodeEditor value={values.starter_code} onChange={set('starter_code')} language={lang} label={t.starterCode} minHeight="120px" />

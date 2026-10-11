@@ -45,7 +45,6 @@ export default function ImportReviewPage() {
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(null);     // 'approve' | 'reject' | 'restore'
   const [ack, setAck] = useState(false);
-  const [tab, setTab] = useState('write');
   const [showPdf, setShowPdf] = useState(false);
 
   const sorted = useMemo(() => sortCandidates(cands), [cands]);
@@ -56,7 +55,7 @@ export default function ImportReviewPage() {
 
   const select = useCallback((id) => {
     setParams((p) => { const n = new URLSearchParams(p); if (id) n.set('c', id); else n.delete('c'); return n; }, { replace: true });
-    setError(''); setAck(false); setTab('write');
+    setError(''); setAck(false);
   }, [setParams]);
 
   const refresh = useCallback(async () => {
@@ -296,19 +295,13 @@ export default function ImportReviewPage() {
                       <TextField label={t.proposal.titleLabel} value={form.title} onChange={set('title')} maxLength={300} />
                       <div className={styles.grid3}>
                         <Select label={t.proposal.type} value={form.question_type} options={toOptions(L.questionType)} onChange={set('question_type')} />
-                        {form.question_type !== 'text' && (
+                        {form.question_type !== 'text' && langOptions.length > 0 && (
                           <Select label={t.proposal.language} value={form.programming_language} placeholder="" options={langOptions} onChange={set('programming_language')} />
                         )}
                         <Select label={t.proposal.difficulty} value={form.difficulty} options={toOptions(L.difficulty)} onChange={set('difficulty')} hint={draft.difficulty ? undefined : t.proposal.difficultyHint} />
                       </div>
 
-                      <div className={styles.tabs} role="tablist">
-                        <button type="button" role="tab" aria-selected={tab === 'write'} className={tab === 'write' ? styles.tabOn : ''} onClick={() => setTab('write')}>{t.proposal.write}</button>
-                        <button type="button" role="tab" aria-selected={tab === 'preview'} className={tab === 'preview' ? styles.tabOn : ''} onClick={() => setTab('preview')}>{t.proposal.preview}</button>
-                      </div>
-                      {tab === 'write'
-                        ? <MarkdownField label={t.proposal.body} rows={12} value={form.body_md} onChange={set('body_md')} />
-                        : <div className={styles.preview}><Markdown empty={<p className={styles.hint}>{t.proposal.previewEmpty}</p>}>{form.body_md}</Markdown></div>}
+                      <MarkdownField label={t.proposal.body} rows={12} value={form.body_md} onChange={set('body_md')} />
 
                       <h3 className={styles.subTitle}>{t.proposal.topics}</h3>
                       {topics.length === 0 ? <p className={styles.hint}>{t.proposal.topicsNone}</p>

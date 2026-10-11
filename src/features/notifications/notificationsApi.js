@@ -89,15 +89,17 @@ function groupTeacherPending(rows) {
       pendingAqIds: [],
       submissionIds: [],
       oldest: r.submitted_at,
+      latest: r.submitted_at,
       correctionCount: 0,
     };
     g.pendingAqIds.push(r.assignment_question_id);
     g.submissionIds.push(r.submission_id);
     if (r.attempt_number > 1) g.correctionCount += 1;
     if (r.submitted_at < g.oldest) g.oldest = r.submitted_at;
+    if (r.submitted_at > g.latest) g.latest = r.submitted_at;
     groups.set(key, g);
   }
-  return [...groups.values()].sort((a, b) => (a.oldest < b.oldest ? -1 : 1));
+  return [...groups.values()];
 }
 
 // Groups the student's own raw "returned for revision" rows into one item
@@ -107,13 +109,26 @@ function groupStudentPending(rows) {
   const groups = new Map();
   for (const r of rows) {
     const key = r.assignment_id;
-    const g = groups.get(key) ?? { assignment_id: r.assignment_id, pendingAqIds: [], submissionIds: [], oldest: r.returned_at };
+    const g = groups.get(key) ?? { assignment_id: r.assignment_id, pendingAqIds: [], submissionIds: [], oldest: r.returned_at, latest: r.returned_at };
     g.pendingAqIds.push(r.assignment_question_id);
     g.submissionIds.push(r.submission_id);
     if (r.returned_at < g.oldest) g.oldest = r.returned_at;
+    if (r.returned_at > g.latest) g.latest = r.returned_at;
     groups.set(key, g);
   }
-  return [...groups.values()].sort((a, b) => (a.oldest < b.oldest ? -1 : 1));
+  return [...groups.values()];
+}
+
+// R1B-3: ONE ordering rule for the bell/panel, for teacher and student alike — the newest item first.
+// An item's time is the most recent moment anything in it happened (`latest`); ties fall back to the stable key,
+// so the order never flickers between fetches. Exported for tests. Read/unread logic is not touched.
+export function sortNewestFirst(items) {
+  const at = (x) => x.latest ?? x.oldest ?? '';
+  return [...items].sort((x, y) => {
+    const ax = at(x); const ay = at(y);
+    if (ax !== ay) return ax < ay ? 1 : -1;
+    return String(x.key) < String(y.key) ? -1 : String(x.key) > String(y.key) ? 1 : 0;
+  });
 }
 
 // Resolves display text + the stable `position` the existing q=:position
@@ -186,7 +201,7 @@ async function enrichAndMerge({ pendingRows, eventRows, role }) {
     // pending group means the question was already reviewed/released — a
     // single submission_received must never show as its own item (this
     // round's principle), so it is simply never surfaced, on purpose.
-    return { data: items, error: null };
+    return { data: sortNewestFirst(items), error: null };
   }
 
   // Student: the actionable "↻ הוחזרה לתיקון" rows, one per assignment.
@@ -226,13 +241,13 @@ async function enrichAndMerge({ pendingRows, eventRows, role }) {
       kind: 'student_feedback',
       assignment_id: assignmentId,
       oldest: g.created_at,
+      latest: g.created_at,
       unread: true,
       absorbedEventIds: g.memberIds,
       ...assignmentMeta(assignmentId),
     }));
 
-  const items = [...returnedItems, ...feedbackItems]
-    .sort((x, y) => (x.oldest < y.oldest ? 1 : -1)); // most recently relevant first
+  const items = sortNewestFirst([...returnedItems, ...feedbackItems]);
   return { data: items, error: null };
 }
 

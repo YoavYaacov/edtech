@@ -25,6 +25,15 @@ export function fetchQuestions(filters) {
   return q;
 }
 
+// R1B-3: does the course already hold code/tracing questions? Used (with the course's own language settings) to decide
+// whether the "programming language" field is relevant. Head-only count query, no rows are transferred.
+export async function courseHasCodeQuestions(courseId) {
+  if (!courseId) return { data: false, error: null };
+  const { count, error } = await supabase.from('questions').select('id', { count: 'exact', head: true })
+    .eq('course_id', courseId).neq('question_type', 'text');
+  return { data: (count ?? 0) > 0, error };
+}
+
 export function fetchQuestion(questionId) {
   return supabase
     .from('questions')

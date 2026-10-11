@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkUnderline from './remarkUnderline';
 import 'katex/dist/katex.min.css';
 import styles from './Markdown.module.css';
 
@@ -9,8 +10,9 @@ import styles from './Markdown.module.css';
 //  * Raw HTML is still skipped, so user text can never inject markup.
 //  * Code blocks and inline code are untouched (math is parsed only in text).
 //  * Math is LTR and bidi-isolated inside RTL Hebrew text; prose stays RTL.
+//  * ++text++ is underline (R1B-3), see remarkUnderline.js; programming text such as i++ is never touched.
 //  * Invalid LaTeX renders as a small error mark instead of breaking the page.
-const remarkPlugins = [remarkMath];
+const remarkPlugins = [remarkMath, remarkUnderline];
 const rehypePlugins = [[rehypeKatex, { throwOnError: false, strict: 'ignore', output: 'htmlAndMathml' }]];
 
 const components = {

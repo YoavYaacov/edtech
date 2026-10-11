@@ -527,6 +527,37 @@ export const markdownToolbar = {
   placeholderText: 'טקסט',
   placeholderCode: 'code',
   placeholderItem: 'פריט',
+  underline: 'קו תחתון (Ctrl+U)',
+  math: 'נוסחה (Ctrl+M)',
+  modeSwitch: 'מצב השדה',
+  edit: 'עריכה',
+  preview: 'תצוגה מקדימה',
+  previewEmpty: 'אין עדיין תוכן להצגה.',
+  previewHint: 'לחיצה על נוסחה בתצוגה פותחת אותה לעריכה.',
+};
+
+// R1B-3: the visual formula editor (MathLive) inside the shared Markdown field.
+export const mathEditor = {
+  title: 'נוסחה',
+  titleEdit: 'עריכת נוסחה',
+  loading: 'טוען את עורך הנוסחאות…',
+  loadError: 'עורך הנוסחאות לא נטען. בדקו את החיבור ונסו שוב.',
+  fieldLabel: 'שדה הנוסחה',
+  inline: 'בתוך השורה',
+  display: 'בשורה נפרדת',
+  insert: 'הוספה לטקסט',
+  update: 'עדכון הנוסחה',
+  cancel: 'ביטול',
+  palette: 'כלי נוסחאות',
+  help: 'הקלידו / לשבר, ^ לחזקה, _ לאינדקס, וגם \\ לקיצורים (למשל \\vec, \\bin). חצים לניווט, Tab לשדה הבא, Enter לאישור, Esc לביטול.',
+  previewLabel: 'כך זה יוצג לתלמיד',
+  empty: 'הנוסחה ריקה.',
+  emptySlot: 'נשארו בנוסחה שדות ריקים. מלאו אותם או מחקו אותם.',
+  invalid: 'הנוסחה אינה תקינה להצגה: ',
+  shortcutsTitle: 'כל הקיצורים (\\)',
+  colTyped: 'הקלדה',
+  colName: 'שם',
+  colView: 'תצוגה',
 };
 
 export const flash = {

@@ -23,3 +23,4 @@
 }
 .md :global(.katex-display > .katex) { font-size: 1.15em; }
 .md :global(.katex-error) { color: var(--danger); font-family: var(--font-code); }
+.md u { text-decoration: underline; text-underline-offset: 3px; }
