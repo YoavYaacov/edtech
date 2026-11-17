@@ -24,6 +24,15 @@ export const decideJoinRequest = (requestId, approve) =>
   supabase.rpc('decide_join_request', { p_request_id: requestId, p_approve: approve });
 export const revealStudentId = (studentId) => supabase.rpc('reveal_student_id', { p_student_id: studentId });
 
+// ---- roster (teacher) and roster-based joining ----
+export const rosterAdd = (classId, rows) => supabase.rpc('roster_add', { p_class_id: classId, p_rows: rows });
+export const rosterList = (classId) => supabase.rpc('roster_list', { p_class_id: classId });
+export const rosterRemove = (rosterId) => supabase.rpc('roster_remove', { p_roster_id: rosterId });
+export const rosterForJoin = (token) => supabase.rpc('roster_for_join', { p_token: token });
+export const verifyRosterEntry = (token, rosterId, idNumber) =>
+  supabase.rpc('verify_roster_entry', { p_token: token, p_roster_id: rosterId, p_id: idNumber });
+export const claimRoster = (ticket) => supabase.rpc('claim_roster', { p_ticket: ticket });
+
 export const joinUrl = (token, origin = typeof window !== 'undefined' ? window.location.origin : '') =>
   `${origin}/join/${token}`;
 

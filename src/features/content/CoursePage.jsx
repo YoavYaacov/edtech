@@ -69,7 +69,7 @@ export default function CoursePage() {
         actions={!editing && (
           <>
             {topicsQ.status === 'ready' && (
-              <Button variant="secondary" icon={Copy} onClick={async () => {
+              <Button variant="secondary" icon={Copy} title={t.copyForClaudeHint} onClick={async () => {
                 const ok = await copyText(JSON.stringify(buildTopicsExport(c, topicsQ.data)));
                 showToast(ok ? t.copyForClaudeDone : t.copyForClaudeFail, { kind: ok ? 'success' : 'error' });
               }}>{t.copyForClaude}</Button>
@@ -92,10 +92,12 @@ export default function CoursePage() {
       )}
 
       <div className={styles.stack}>
-        {topicsQ.status === 'loading' && <LoadingState />}
+        {/* The data stays mounted while it reloads (a reload used to flash the loading state and close every open panel). */}
+        {classesQ.data && <ClassesPanel courseId={c.id} classes={classesQ.data} onChanged={() => { classesQ.reload(); statusQ.reload(); }} />}
+        {topicsQ.status === 'loading' && !topicsQ.data && <LoadingState />}
         {topicsQ.status === 'error' && <ErrorState message={errors.generic} onRetry={topicsQ.reload} />}
-        {topicsQ.status === 'ready' && (() => {
-          const classList = classesQ.status === 'ready' ? classesQ.data : [];
+        {topicsQ.data && (() => {
+          const classList = classesQ.data ?? [];
           const activeClass = classList.some((x) => x.id === pickedClass) ? pickedClass : (classList[0]?.id ?? '');
           return (
             <TopicTree courseId={c.id} topics={topicsQ.data} classes={classList} classId={activeClass}
@@ -104,10 +106,9 @@ export default function CoursePage() {
               statuses={new Map((statusQ.data ?? []).filter((r) => r.class_id === activeClass).map((r) => [r.topic_id, r.status]))} />
           );
         })()}
-        {classesQ.status === 'ready' && <ClassesPanel courseId={c.id} classes={classesQ.data} onChanged={() => { classesQ.reload(); statusQ.reload(); }} />}
-        {topicsQ.status === 'ready' && <MistakeTagsPanel courseId={c.id} topics={topicsQ.data} />}
-        {c.programming_language && <CourseLanguagesPanel course={c} languages={courseLanguageList(c)} onChanged={course.reload} />}
         <EnrollmentPanel courseId={c.id} languages={courseLanguageList(c)} primaryLanguage={c.programming_language} />
+        {c.programming_language && <CourseLanguagesPanel course={c} languages={courseLanguageList(c)} onChanged={course.reload} />}
+        {topicsQ.data && <MistakeTagsPanel courseId={c.id} topics={topicsQ.data} />}
       </div>
 
       <div className={styles.dangerZone}>

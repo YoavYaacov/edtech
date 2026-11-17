@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-const api = vi.hoisted(() => ({ previewJoin: vi.fn(), joinClass: vi.fn(), myIdentity: vi.fn(), completeIdentity: vi.fn() }));
+const api = vi.hoisted(() => ({ rosterForJoin: vi.fn(), verifyRosterEntry: vi.fn(), claimRoster: vi.fn() }));
 const auth = vi.hoisted(() => ({ value: {} }));
 vi.mock('../classesApi', () => api);
 vi.mock('../../auth/AuthProvider', () => ({ useAuth: () => auth.value }));
@@ -13,37 +13,72 @@ const TOKEN = 'a'.repeat(32);
 const renderAt = (token = TOKEN) => render(
   <MemoryRouter initialEntries={[`/join/${token}`]}><Routes><Route path="/join/:token" element={<JoinPage />} /></Routes></MemoryRouter>,
 );
-const ok = { status: 'ok', class_title: 'כיתה א', course_title: 'מתמטיקה', requires_approval: false };
+const list = { status: 'ok', class_title: 'כיתה א', course_title: 'מתמטיקה', students: [{ id: 'r1', name: 'דנה כהן' }, { id: 'r2', name: 'נועה בר' }] };
 const signedOut = () => ({ session: null, profile: null, isInitializing: false, signIn: vi.fn().mockResolvedValue({ error: null }),
   signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }), signOut: vi.fn() });
 const student = () => ({ session: { user: { id: 's1' } }, profile: { role: 'student' }, isInitializing: false, signOut: vi.fn() });
+const pick = (name, id) => {
+  fireEvent.change(screen.getByLabelText('השם שלי'), { target: { value: name } });
+  fireEvent.change(screen.getByLabelText('מספר תעודת זהות'), { target: { value: id } });
+};
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   Object.values(api).forEach((f) => f.mockReset());
-  api.previewJoin.mockResolvedValue({ data: ok, error: null });
+  api.rosterForJoin.mockResolvedValue({ data: list, error: null });
   auth.value = signedOut();
 });
 
-describe('JoinPage', () => {
+describe('JoinPage (roster flow)', () => {
   it('malformed token never reaches the server', async () => {
     renderAt('short');
     expect(await screen.findByText(/הקישור אינו תקף/)).toBeTruthy();
-    expect(api.previewJoin).not.toHaveBeenCalled();
+    expect(api.rosterForJoin).not.toHaveBeenCalled();
   });
 
-  it.each([['expired', /תוקף הקישור פג/], ['revoked', /ביטלה את הקישור/], ['full', /מספר ההצטרפויות המרבי/], ['invalid', /הקישור אינו תקף/]])(
-    'shows the %s state and offers no login', async (status, re) => {
-      api.previewJoin.mockResolvedValue({ data: { status }, error: null });
+  it.each([['expired', /תוקף הקישור פג/], ['revoked', /בוטל על ידי המורה/], ['full', /מספר ההצטרפויות המרבי/], ['invalid', /הקישור אינו תקף/]])(
+    'shows the %s state and nothing else', async (status, re) => {
+      api.rosterForJoin.mockResolvedValue({ data: { status }, error: null });
       renderAt();
       expect(await screen.findByText(re)).toBeTruthy();
-      expect(screen.queryByLabelText('אימייל')).toBeNull();
+      expect(screen.queryByLabelText('השם שלי')).toBeNull();
     });
 
-  it('signed out: shows the class and a login/register choice; registering needs the consent box and 8+ chars', async () => {
+  it('first step is the name list and the ID, with no account form yet', async () => {
     renderAt();
     expect(await screen.findByText(/כיתה א/)).toBeTruthy();
-    expect(document.body.textContent).toContain('מתמטיקה');
-    fireEvent.click(screen.getByRole('tab', { name: 'חשבון חדש' }));
+    expect(screen.getByRole('option', { name: 'דנה כהן' })).toBeTruthy();
+    expect(screen.queryByLabelText('אימייל')).toBeNull();
+    expect(screen.queryByLabelText('סיסמה')).toBeNull();
+  });
+
+  it('empty list explains to contact the teacher', async () => {
+    api.rosterForJoin.mockResolvedValue({ data: { ...list, students: [] }, error: null });
+    renderAt();
+    expect(await screen.findByText(/אין כרגע שמות ברשימה/)).toBeTruthy();
+  });
+
+  it('checks the ID format locally and shows a generic message on a wrong match', async () => {
+    renderAt();
+    await screen.findByLabelText('השם שלי');
+    pick('r1', '936044503');
+    expect(screen.getByText(/מספר תעודת הזהות אינו תקין/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'המשך' }).disabled).toBe(true);
+    pick('r1', '442852497');
+    api.verifyRosterEntry.mockResolvedValue({ data: { ok: false, reason: 'wrong' }, error: null });
+    fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
+    expect(await screen.findByText(/השם ומספר הזהות אינם תואמים/)).toBeTruthy();
+    expect(api.verifyRosterEntry).toHaveBeenCalledWith(TOKEN, 'r1', '442852497');
+  });
+
+  it('after verification a signed-out student creates an account (register is the default tab, consent required)', async () => {
+    renderAt();
+    await screen.findByLabelText('השם שלי');
+    pick('r1', '936044502');
+    api.verifyRosterEntry.mockResolvedValue({ data: { ok: true, ticket: 'T'.repeat(48), name: 'דנה כהן' }, error: null });
+    fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
+    expect(await screen.findByText(/אומתו הפרטים של דנה כהן/)).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'חשבון חדש' }).getAttribute('aria-selected')).toBe('true');
     fireEvent.change(screen.getByLabelText('אימייל'), { target: { value: 'a@b.co' } });
     fireEvent.change(screen.getByLabelText('סיסמה'), { target: { value: 'longenough1' } });
     fireEvent.click(screen.getByRole('button', { name: 'פתיחת חשבון' }));
@@ -55,74 +90,51 @@ describe('JoinPage', () => {
     expect(await screen.findByText(/שלחנו אימייל/)).toBeTruthy();
   });
 
+  it('a signed-in student with a verified ticket joins automatically', async () => {
+    auth.value = student();
+    api.verifyRosterEntry.mockResolvedValue({ data: { ok: true, ticket: 'T'.repeat(48), name: 'דנה כהן' }, error: null });
+    api.claimRoster.mockResolvedValue({ data: { ok: true, status: 'joined', class_id: 'k1' }, error: null });
+    renderAt();
+    await screen.findByLabelText('השם שלי');
+    expect(api.claimRoster).not.toHaveBeenCalled();
+    pick('r1', '936044502');
+    fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
+    expect(await screen.findByText(/הצטרפתם לכיתה "כיתה א"/)).toBeTruthy();
+    expect(api.claimRoster).toHaveBeenCalledTimes(1);
+    expect(api.claimRoster).toHaveBeenCalledWith('T'.repeat(48));
+  });
+
+  it('a student who registers (session appears) with a stored ticket joins without asking again', async () => {
+    window.sessionStorage.setItem(`hevanti:ticket:${TOKEN}`, 'K'.repeat(48));
+    auth.value = student();
+    api.claimRoster.mockResolvedValue({ data: { ok: true, status: 'already_member' }, error: null });
+    renderAt();
+    expect(await screen.findByText(/כבר בכיתה הזו/)).toBeTruthy();
+    expect(api.claimRoster).toHaveBeenCalledWith('K'.repeat(48));
+  });
+
+  it.each([['id_in_use', /כבר משויך לחשבון אחר/], ['taken', /כבר נרשם בחשבון אחר/], ['other_class', /כיתה אחרת באותו מקצוע/], ['blocked', /אי אפשר להצטרף/], ['full', /מספר ההצטרפויות/]])(
+    'claim refusal %s is explained', async (reason, re) => {
+      window.sessionStorage.setItem(`hevanti:ticket:${TOKEN}`, 'K'.repeat(48));
+      auth.value = student();
+      api.claimRoster.mockResolvedValue({ data: { ok: false, reason }, error: null });
+      renderAt();
+      expect(await screen.findByText(re)).toBeTruthy();
+    });
+
+  it('an expired ticket sends the student back to the name step', async () => {
+    window.sessionStorage.setItem(`hevanti:ticket:${TOKEN}`, 'K'.repeat(48));
+    auth.value = student();
+    api.claimRoster.mockResolvedValue({ data: { ok: false, reason: 'ticket_invalid' }, error: null });
+    renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: 'חזרה לבחירת השם' }));
+    expect(await screen.findByLabelText('השם שלי')).toBeTruthy();
+  });
+
   it('teacher account cannot join', async () => {
     auth.value = { ...student(), profile: { role: 'teacher' } };
     renderAt();
     expect(await screen.findByText(/מחוברים כמורים/)).toBeTruthy();
-    expect(api.myIdentity).not.toHaveBeenCalled();
-    expect(api.joinClass).not.toHaveBeenCalled();
-  });
-
-  it('incomplete identity: validates the ID locally, maps server reasons, then continues to the join button', async () => {
-    auth.value = student();
-    api.myIdentity.mockResolvedValueOnce({ data: { complete: false }, error: null })
-      .mockResolvedValue({ data: { complete: true }, error: null });
-    renderAt();
-    fireEvent.change(await screen.findByLabelText('שם פרטי'), { target: { value: 'דנה' } });
-    fireEvent.change(screen.getByLabelText('שם משפחה'), { target: { value: 'כהן' } });
-    fireEvent.change(screen.getByLabelText('מספר תעודת זהות'), { target: { value: '936044503' } });
-    expect(screen.getByText(/מספר תעודת הזהות אינו תקין/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'שמירה והמשך' }));
-    expect(api.completeIdentity).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('מספר תעודת זהות'), { target: { value: '936044502' } });
-    api.completeIdentity.mockResolvedValueOnce({ data: { ok: false, reason: 'id_in_use' }, error: null });
-    fireEvent.click(screen.getByRole('button', { name: 'שמירה והמשך' }));
-    expect(await screen.findByText(/כבר רשום בחשבון אחר/)).toBeTruthy();
-    api.completeIdentity.mockResolvedValueOnce({ data: { ok: true }, error: null });
-    fireEvent.click(screen.getByRole('button', { name: 'שמירה והמשך' }));
-    expect(await screen.findByRole('button', { name: 'הצטרפות לכיתה' })).toBeTruthy();
-    expect(api.completeIdentity).toHaveBeenLastCalledWith('דנה', 'כהן', '936044502');
-  });
-
-  it('joins only after an explicit click, and shows the result', async () => {
-    auth.value = student();
-    api.myIdentity.mockResolvedValue({ data: { complete: true }, error: null });
-    api.joinClass.mockResolvedValue({ data: { ok: true, status: 'joined' }, error: null });
-    renderAt();
-    const btn = await screen.findByRole('button', { name: 'הצטרפות לכיתה' });
-    expect(api.joinClass).not.toHaveBeenCalled();
-    fireEvent.click(btn);
-    expect(await screen.findByText(/הצטרפתם לכיתה "כיתה א"/)).toBeTruthy();
-    expect(api.joinClass).toHaveBeenCalledWith(TOKEN);
-  });
-
-  it('approval mode: explains and reports a pending request', async () => {
-    auth.value = student();
-    api.previewJoin.mockResolvedValue({ data: { ...ok, requires_approval: true }, error: null });
-    api.myIdentity.mockResolvedValue({ data: { complete: true }, error: null });
-    api.joinClass.mockResolvedValue({ data: { ok: true, status: 'pending' }, error: null });
-    renderAt();
-    expect(await screen.findByText(/המורה מאשרת כל הצטרפות/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'שליחת בקשת הצטרפות' }));
-    expect(await screen.findByText(/הבקשה נשלחה/)).toBeTruthy();
-  });
-
-  it.each([['other_class', /כיתה אחרת באותו מקצוע/], ['blocked', /אי אפשר להצטרף/], ['rejected', /לא אושרה/], ['full', /מספר ההצטרפויות/]])(
-    'refusal %s is explained', async (reason, re) => {
-      auth.value = student();
-      api.myIdentity.mockResolvedValue({ data: { complete: true }, error: null });
-      api.joinClass.mockResolvedValue({ data: { ok: false, reason }, error: null });
-      renderAt();
-      fireEvent.click(await screen.findByRole('button', { name: 'הצטרפות לכיתה' }));
-      expect(await screen.findByText(re)).toBeTruthy();
-    });
-
-  it('already a member is reported calmly', async () => {
-    auth.value = student();
-    api.myIdentity.mockResolvedValue({ data: { complete: true }, error: null });
-    api.joinClass.mockResolvedValue({ data: { ok: true, status: 'already_member' }, error: null });
-    renderAt();
-    fireEvent.click(await screen.findByRole('button', { name: 'הצטרפות לכיתה' }));
-    expect(await screen.findByText(/כבר בכיתה הזו/)).toBeTruthy();
+    expect(api.claimRoster).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { LogIn, UserPlus, Check } from 'lucide-react';
 import AuthLayout from '../auth/AuthLayout';
@@ -7,8 +7,8 @@ import Button from '../../components/ui/Button';
 import TextField from '../../components/ui/TextField';
 import { LoadingState } from '../../components/ui/States';
 import { authErrorMessage } from '../../lib/authErrors';
-import { completeIdentity, joinClass, myIdentity, previewJoin } from './classesApi';
-import { cleanName, isValidIsraeliId, isValidName, normalizeIdNumber } from './identity';
+import { claimRoster, rosterForJoin, verifyRosterEntry } from './classesApi';
+import { isValidIsraeliId, normalizeIdNumber } from './identity';
 import { errors, joinPage as t } from '../../i18n/he';
 import styles from '../auth/authForms.module.css';
 
@@ -21,7 +21,7 @@ function Notice({ kind = 'error', children }) {
 
 function AuthStep({ onNeedMail, redirectTo }) {
   const { signIn, signUp } = useAuth();
-  const [tab, setTab] = useState('login');
+  const [tab, setTab] = useState('register'); // students arrive without an account: registering is the default
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
@@ -46,7 +46,7 @@ function AuthStep({ onNeedMail, redirectTo }) {
   return (
     <>
       <div role="tablist" className={styles.muted} style={{ display: 'flex', gap: 'var(--space-4)' }}>
-        {[['login', t.tabLogin], ['register', t.tabRegister]].map(([k, label]) => (
+        {[['register', t.tabRegister], ['login', t.tabLogin]].map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={styles.linkButton}
             style={{ fontWeight: tab === k ? 700 : 400 }} onClick={() => { setTab(k); setError(''); }}>{label}</button>
         ))}
@@ -72,36 +72,30 @@ function AuthStep({ onNeedMail, redirectTo }) {
   );
 }
 
-function IdentityStep({ onDone }) {
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
+const ticketKey = (token) => `hevanti:ticket:${token}`;
+const readTicket = (token) => { try { return window.sessionStorage.getItem(ticketKey(token)); } catch { return null; } };
+const writeTicket = (token, v) => { try { if (v) window.sessionStorage.setItem(ticketKey(token), v); else window.sessionStorage.removeItem(ticketKey(token)); } catch { /* storage blocked */ } };
+
+function PickStep({ students, busy, error, onSubmit }) {
+  const [rid, setRid] = useState('');
   const [idNum, setIdNum] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   const idBad = idNum !== '' && !isValidIsraeliId(idNum);
-
-  async function submit(e) {
-    e.preventDefault();
-    setError('');
-    if (!isValidName(first) || !isValidName(last)) { setError(t.identityErrors.invalid_name); return; }
-    if (!isValidIsraeliId(idNum)) { setError(t.identityErrors.invalid_id); return; }
-    setBusy(true);
-    const { data, error: err } = await completeIdentity(cleanName(first), cleanName(last), normalizeIdNumber(idNum));
-    setBusy(false);
-    if (err) { setError(errors.generic); return; }
-    if (!data?.ok) { setError(t.identityErrors[data?.reason] ?? errors.generic); return; }
-    onDone();
-  }
-
+  if (students.length === 0) return <Notice>{t.emptyList}</Notice>;
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
-      <p className={styles.muted}>{t.identityExplain}</p>
-      <TextField label={t.firstName} autoComplete="given-name" maxLength={40} required value={first} onChange={(e) => setFirst(e.target.value)} />
-      <TextField label={t.lastName} autoComplete="family-name" maxLength={40} required value={last} onChange={(e) => setLast(e.target.value)} />
-      <TextField label={t.idNumber} dir="ltr" inputMode="numeric" autoComplete="off" maxLength={11} required
-        value={idNum} hint={t.idHint} error={idBad ? t.identityErrors.invalid_id : undefined} onChange={(e) => setIdNum(e.target.value)} />
+    <form className={styles.form} noValidate onSubmit={(e) => { e.preventDefault(); onSubmit(rid, normalizeIdNumber(idNum)); }}>
+      <p className={styles.muted}>{t.pickIntro}</p>
+      <label className={styles.muted}>
+        {t.pickName}
+        <select value={rid} onChange={(e) => setRid(e.target.value)} style={{ display: 'block', width: '100%', minHeight: 44 }}>
+          <option value="">{t.pickPlaceholder}</option>
+          {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </label>
+      <TextField label={t.idNumber} dir="ltr" inputMode="numeric" autoComplete="off" maxLength={11} required value={idNum}
+        hint={t.idHint} error={idBad ? t.idInvalid : undefined} onChange={(e) => setIdNum(e.target.value)} />
       {error && <Notice>{error}</Notice>}
-      <Button type="submit" loading={busy} disabled={!first.trim() || !last.trim() || !idNum}>{busy ? t.saving : t.saveIdentity}</Button>
+      <Button type="submit" loading={busy} disabled={!rid || !idNum || idBad}>{busy ? t.verifying : t.verify}</Button>
+      <p className={styles.muted}>{t.missingName}</p>
     </form>
   );
 }
@@ -109,70 +103,95 @@ function IdentityStep({ onDone }) {
 export default function JoinPage() {
   const { token } = useParams();
   const { session, profile, isInitializing, signOut } = useAuth();
-  const [preview, setPreview] = useState(null); // {status, class_title, course_title, requires_approval}
-  const [identity, setIdentity] = useState(null); // my_identity() | null
-  const [result, setResult] = useState(null); // join_class() result
+  const [info, setInfo] = useState(null); // roster_for_join(): {status, class_title, course_title, students}
+  const [ticket, setTicket] = useState(() => readTicket(token));
+  const [verifiedName, setVerifiedName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null); // claim_roster() result
   const [mailSent, setMailSent] = useState(false);
   const [failed, setFailed] = useState(false);
+  const claiming = useRef(false);
 
   useEffect(() => {
     let alive = true;
-    if (!TOKEN_FORMAT.test(token ?? '')) { setPreview({ status: 'invalid' }); return undefined; }
-    previewJoin(token).then(({ data, error }) => { if (alive) { if (error) setFailed(true); else setPreview(data); } });
+    if (!TOKEN_FORMAT.test(token ?? '')) { setInfo({ status: 'invalid' }); return undefined; }
+    rosterForJoin(token).then(({ data, error: err }) => { if (alive) { if (err) setFailed(true); else setInfo(data); } });
     return () => { alive = false; };
   }, [token]);
 
-  const isStudent = session && profile?.role === 'student';
-  const loadIdentity = useCallback(async () => {
-    const { data, error } = await myIdentity();
-    if (error) setFailed(true); else setIdentity(data);
-  }, []);
-  useEffect(() => { if (isStudent) loadIdentity(); }, [isStudent, loadIdentity]);
+  const isStudent = !!session && profile?.role === 'student';
 
-  async function doJoin() {
+  async function claim(tk) {
+    if (claiming.current) return;
+    claiming.current = true;
     setBusy(true);
-    const { data, error } = await joinClass(token);
+    const { data, error: err } = await claimRoster(tk);
     setBusy(false);
-    if (error) { setFailed(true); return; }
+    claiming.current = false;
+    if (err) { setFailed(true); return; }
+    writeTicket(token, null);
+    if (!data?.ok && data?.reason === 'ticket_invalid') setTicket(null);
     setResult(data);
   }
 
-  if (failed) return <AuthLayout title={t.title}><Notice>{errors.generic}</Notice></AuthLayout>;
-  if (!preview || isInitializing) return <AuthLayout title={t.title}><LoadingState label={t.checking} /></AuthLayout>;
-  if (preview.status !== 'ok') {
-    return <AuthLayout title={t.title}><Notice>{t[preview.status] ?? t.invalid}</Notice></AuthLayout>;
+  // a verified ticket plus a signed-in student: join without any further step
+  useEffect(() => {
+    if (isStudent && ticket && !result && info?.status === 'ok') claim(ticket);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, ticket, info]);
+
+  async function verify(rid, idNumber) {
+    setBusy(true); setError('');
+    const { data, error: err } = await verifyRosterEntry(token, rid, idNumber);
+    setBusy(false);
+    if (err) { setError(errors.generic); return; }
+    if (!data?.ok) { setError(t.verifyErrors[data?.reason] ?? errors.generic); return; }
+    writeTicket(token, data.ticket);
+    setVerifiedName(data.name ?? '');
+    setTicket(data.ticket);
   }
 
-  const intro = <p>{t.invite(preview.class_title, preview.course_title)}</p>;
+  function startOver() { writeTicket(token, null); setTicket(null); setResult(null); setError(''); }
 
+  if (failed) return <AuthLayout title={t.title}><Notice>{errors.generic}</Notice></AuthLayout>;
+  if (!info || isInitializing) return <AuthLayout title={t.title}><LoadingState label={t.checking} /></AuthLayout>;
+  if (info.status !== 'ok') {
+    return <AuthLayout title={t.title}><Notice>{t[info.status] ?? t.invalid}</Notice></AuthLayout>;
+  }
+
+  const intro = <p>{t.invite(info.class_title, info.course_title)}</p>;
   let body;
   if (result) {
     if (result.ok) {
-      const text = result.status === 'pending' ? t.pending : result.status === 'already_member' ? t.alreadyMember : t.joined(preview.class_title);
       body = (<>
-        <Notice kind="success"><Check size={16} aria-hidden="true" /> {text}</Notice>
-        {result.status !== 'pending' && <Link to="/student/subjects" className={styles.linkButton}>{t.toSubjects}</Link>}
+        <Notice kind="success"><Check size={16} aria-hidden="true" /> {result.status === 'already_member' ? t.alreadyMember : t.joined(info.class_title)}</Notice>
+        <Link to="/student/subjects" className={styles.linkButton}>{t.toSubjects}</Link>
       </>);
     } else {
-      body = <Notice>{t.results[result.reason] ?? errors.generic}</Notice>;
+      body = (<>
+        <Notice>{t.results[result.reason] ?? errors.generic}</Notice>
+        {result.reason === 'ticket_invalid' && <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>}
+      </>);
     }
-  } else if (!session) {
-    body = mailSent ? <Notice kind="success">{t.checkEmail}</Notice> : (<>{intro}<AuthStep redirectTo={`${window.location.origin}/join/${token}`} onNeedMail={() => setMailSent(true)} /></>);
-  } else if (!isStudent) {
+  } else if (session && !isStudent) {
     body = (<>
       <Notice>{t.teacherAccount}</Notice>
       <button type="button" className={styles.linkButton} onClick={() => signOut()}>{t.signOut}</button>
     </>);
-  } else if (!identity) {
-    body = <LoadingState label={t.checking} />;
-  } else if (!identity.complete) {
-    body = (<>{intro}<IdentityStep onDone={loadIdentity} /></>);
+  } else if (isStudent && ticket) {
+    body = <LoadingState label={t.joining} />;
+  } else if (!ticket) {
+    body = (<>{intro}<PickStep students={info.students ?? []} busy={busy} error={error} onSubmit={verify} /></>);
+  } else if (mailSent) {
+    body = <Notice kind="success">{t.checkEmail}</Notice>;
   } else {
     body = (<>
       {intro}
-      {preview.requires_approval && <p className={styles.muted}>{t.needsApproval}</p>}
-      <Button loading={busy} onClick={doJoin}>{busy ? t.joining : preview.requires_approval ? t.sendRequest : t.joinButton}</Button>
+      {verifiedName && <Notice kind="success"><Check size={16} aria-hidden="true" /> {t.verifiedAs(verifiedName)}</Notice>}
+      <strong>{t.createAccount}</strong>
+      <AuthStep redirectTo={`${window.location.origin}/join/${token}`} onNeedMail={() => { writeTicket(token, null); setMailSent(true); }} />
+      <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>
     </>);
   }
 

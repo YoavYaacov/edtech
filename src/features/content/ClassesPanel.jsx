@@ -75,7 +75,7 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
                 <Button variant="secondary" icon={Link2} aria-expanded={!!linkOpen[c.id]}
                   onClick={() => setLinkOpen((o) => ({ ...o, [c.id]: !o[c.id] }))}>{t.joinLinkToggle}</Button>
               </div>
-              {linkOpen[c.id] && <JoinLinkPanel classId={c.id} requiresApproval={c.join_requires_approval} onChanged={onChanged} />}
+              {linkOpen[c.id] && <JoinLinkPanel classId={c.id} />}
             </li>
           );
         })}

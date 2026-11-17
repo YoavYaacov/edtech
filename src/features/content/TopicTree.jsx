@@ -168,7 +168,7 @@ export default function TopicTree({ courseId, topics, classes = [], classId = ''
 
   return (
     <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
-      storageKey={`course:${courseId}:topics`} defaultOpen>
+      storageKey={`course:${courseId}:topics`} defaultOpen={false}>
       <p className={styles.muted}>{t.explain}</p>
       {statusAvailable && (classes.length === 0 ? <p className={styles.muted}>{ts.needClass}</p> : (
         <label className={styles.classPicker}>

@@ -1,21 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, MessageSquare, X } from 'lucide-react';
+import { Copy, MessageSquare } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { showToast } from '../../components/ui/Toast';
 import { copyText } from '../content/topicsExport';
 import { useAsync } from '../../lib/useAsync';
-import {
-  createJoinLink, decideJoinRequest, fetchActiveJoinLink, joinUrl, listJoinRequests, revokeJoinLink, setJoinApproval,
-} from './classesApi';
+import RosterPanel from './RosterPanel';
+import { createJoinLink, fetchActiveJoinLink, joinUrl, revokeJoinLink } from './classesApi';
 import { errors, formatDate, joinLink as t } from '../../i18n/he';
 import styles from '../content/content.module.css';
 
 // Join link controls of ONE class (teacher). The token is shown only here, to the class owner (RLS), and every
 // action is re-checked in the database.
-export default function JoinLinkPanel({ classId, requiresApproval, onChanged }) {
+export default function JoinLinkPanel({ classId }) {
   const link = useAsync(() => fetchActiveJoinLink(classId), [classId]);
-  const reqs = useAsync(() => listJoinRequests(classId), [classId]);
   const [days, setDays] = useState(14);
   const [max, setMax] = useState('');
   const [busy, setBusy] = useState(false);
@@ -77,30 +75,7 @@ export default function JoinLinkPanel({ classId, requiresApproval, onChanged }) 
       </div>
       {active && <p className={styles.muted}>{t.renewNote}</p>}
 
-      <label className={styles.classHead}>
-        <input type="checkbox" checked={!!requiresApproval} disabled={busy}
-          onChange={(e) => run(() => setJoinApproval(classId, e.target.checked), onChanged)} />
-        <span>{t.approval}</span>
-      </label>
-
-      {(requiresApproval || (reqs.data ?? []).length > 0) && (
-        <div>
-          <strong>{t.requests}</strong>
-          {(reqs.data ?? []).length === 0 ? <p className={styles.muted}>{t.noRequests}</p> : (
-            <ul className={styles.memberList}>
-              {reqs.data.map((r) => (
-                <li key={r.id} className={styles.memberChip}>
-                  {r.name}
-                  <button type="button" className={styles.iconBtn} title={t.approve} aria-label={`${t.approve}: ${r.name}`} disabled={busy}
-                    onClick={() => run(() => decideJoinRequest(r.id, true), async () => { await reqs.reload(); await onChanged?.(); })}><Check size={14} /></button>
-                  <button type="button" className={styles.iconBtn} title={t.reject} aria-label={`${t.reject}: ${r.name}`} disabled={busy}
-                    onClick={() => run(() => decideJoinRequest(r.id, false), reqs.reload)}><X size={14} /></button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <RosterPanel classId={classId} />
       <p className={styles.muted}>{t.privacyNote}</p>
     </div>
   );
