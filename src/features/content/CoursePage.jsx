@@ -9,9 +9,10 @@ import { ErrorState, LoadingState } from '../../components/ui/States';
 import CourseForm from './CourseForm';
 import TopicTree from './TopicTree';
 import EnrollmentPanel from './EnrollmentPanel';
+import ClassesPanel from './ClassesPanel';
 import MistakeTagsPanel from './MistakeTagsPanel';
 import CourseLanguagesPanel from './CourseLanguagesPanel';
-import { courseLanguageList, deleteCourse, fetchCourse, fetchTopics, updateCourse } from './contentApi';
+import { courseLanguageList, deleteCourse, fetchClasses, fetchCourse, fetchTopicStatuses, fetchTopics, updateCourse } from './contentApi';
 import { blockedReason, useSafeDelete } from './useSafeDelete';
 import { useAsync } from '../../lib/useAsync';
 import { common, courses as t, errors, flash, languages, nav, safeDelete as sd } from '../../i18n/he';
@@ -21,6 +22,9 @@ export default function CoursePage() {
   const { courseId } = useParams();
   const course = useAsync(() => fetchCourse(courseId), [courseId]);
   const topicsQ = useAsync(() => fetchTopics(courseId), [courseId]);
+  const statusQ = useAsync(() => fetchTopicStatuses(courseId), [courseId]);
+  const classesQ = useAsync(() => fetchClasses(courseId), [courseId]);
+  const [pickedClass, setPickedClass] = useState('');
   const [editing, setEditing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -77,7 +81,17 @@ export default function CoursePage() {
       <div className={styles.stack}>
         {topicsQ.status === 'loading' && <LoadingState />}
         {topicsQ.status === 'error' && <ErrorState message={errors.generic} onRetry={topicsQ.reload} />}
-        {topicsQ.status === 'ready' && <TopicTree courseId={c.id} topics={topicsQ.data} onChanged={topicsQ.reload} />}
+        {topicsQ.status === 'ready' && (() => {
+          const classList = classesQ.status === 'ready' ? classesQ.data : [];
+          const activeClass = classList.some((x) => x.id === pickedClass) ? pickedClass : (classList[0]?.id ?? '');
+          return (
+            <TopicTree courseId={c.id} topics={topicsQ.data} classes={classList} classId={activeClass}
+              onClassChange={setPickedClass} onChanged={() => { topicsQ.reload(); statusQ.reload(); }}
+              statusAvailable={statusQ.status === 'ready' && classesQ.status === 'ready'}
+              statuses={new Map((statusQ.data ?? []).filter((r) => r.class_id === activeClass).map((r) => [r.topic_id, r.status]))} />
+          );
+        })()}
+        {classesQ.status === 'ready' && <ClassesPanel courseId={c.id} classes={classesQ.data} onChanged={() => { classesQ.reload(); statusQ.reload(); }} />}
         {topicsQ.status === 'ready' && <MistakeTagsPanel courseId={c.id} topics={topicsQ.data} />}
         {c.programming_language && <CourseLanguagesPanel course={c} languages={courseLanguageList(c)} onChanged={course.reload} />}
         <EnrollmentPanel courseId={c.id} languages={courseLanguageList(c)} primaryLanguage={c.programming_language} />

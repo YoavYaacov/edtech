@@ -150,3 +150,18 @@ export function deleteMistakeTag(tagId) {
 export function reorderCourses(orderedIds) {
   return supabase.rpc('reorder_courses', { p_ids: orderedIds });
 }
+
+// Teacher: classes (a group inside one subject) and study status per (class, topic).
+export function fetchClasses(courseId) {
+  return supabase.from('classes')
+    .select('id, title, created_at, members:class_students(student_id)')
+    .eq('course_id', courseId).order('created_at', { ascending: true });
+}
+export const createClass = (courseId, title) => supabase.rpc('create_class', { p_course_id: courseId, p_title: title });
+export const setClassMember = (classId, studentId, member) =>
+  supabase.rpc('set_class_member', { p_class_id: classId, p_student_id: studentId, p_member: member });
+export function fetchTopicStatuses(courseId) {
+  return supabase.from('topic_study_status').select('class_id, topic_id, status').eq('course_id', courseId);
+}
+export const setTopicStatus = (classId, topicId, status) =>
+  supabase.rpc('set_topic_status', { p_class_id: classId, p_topic_id: topicId, p_status: status });
