@@ -31,6 +31,8 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 18 | `20261117000100_classes_and_topic_status.sql` | Student screen (batch 1) | yes (applied by owner, verified in ledger) |
 | 19 | `20261117000200_delete_class.sql` | Batch 2: delete class (atomic) | NO - not applied (awaiting approval) |
 | 20 | `20261117000300_lessons.sql` | Batch 2: lessons engine | NO - not applied (run after row 19) |
+| 21 | `20261118000100_join_links_and_identity.sql` | Batch 4: join links, encrypted ID, join approval | NO - not applied (run after row 20; needs Vault + pgcrypto) |
+| 22 | `20261118000200_class_board.sql` | Batch 5: class board + comments | NO - not applied (run after row 21) |
 
 Rows 12-15 are applied in Production (per owner report). Row 16 is new. Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
 Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls

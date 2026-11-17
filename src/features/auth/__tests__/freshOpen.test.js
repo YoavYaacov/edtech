@@ -26,4 +26,8 @@ describe('fresh open', () => {
     expect(freshOpenTarget('/set-password', '/student')).toBeNull();
     expect(freshOpenTarget(`/student/assignments/${id}`, '/student')).toBeNull();
   });
+
+  it('never redirects away from a class join link', () => {
+    expect(freshOpenTarget(`/join/${'a'.repeat(32)}`, '/student')).toBeNull();
+  });
 });

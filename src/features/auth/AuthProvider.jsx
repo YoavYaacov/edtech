@@ -65,6 +65,10 @@ export function AuthProvider({ children }) {
       isInitializing: session === undefined || (session && (profileStatus === 'idle' || profileStatus === 'loading')),
       reloadProfile: loadProfile,
       signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+      // Self-registration (join-by-link only). The database forces role='student' for every new account;
+      // nothing sent from the browser can create a teacher or admin.
+      signUp: (email, password, redirectTo) =>
+        supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } }),
       signOut: () => supabase.auth.signOut(),
       sendPasswordReset: (email) =>
         supabase.auth.resetPasswordForEmail(email, {

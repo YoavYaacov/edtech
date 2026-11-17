@@ -154,7 +154,7 @@ export function reorderCourses(orderedIds) {
 // Teacher: classes (a group inside one subject) and study status per (class, topic).
 export function fetchClasses(courseId) {
   return supabase.from('classes')
-    .select('id, title, created_at, members:class_students(student_id)')
+    .select('id, title, created_at, join_requires_approval, members:class_students(student_id)')
     .eq('course_id', courseId).order('created_at', { ascending: true });
 }
 export const createClass = (courseId, title) => supabase.rpc('create_class', { p_course_id: courseId, p_title: title });

@@ -23,5 +23,6 @@ export const resetFreshOpenForTests = () => { cached = null; };
 export function freshOpenTarget(path, home) {
   if (path === home || path === '/login' || path === '/set-password') return null;
   if (isSharedLink(path)) return null;
+  if (/^\/join\//.test(path)) return null; // class join links open as they are
   return home;
 }

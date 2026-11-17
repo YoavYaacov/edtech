@@ -166,3 +166,15 @@
 .className { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .memberList { list-style: none; margin: var(--space-2) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .memberChip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--lavender-50); color: var(--lavender-700); font-size: var(--fs-sm); }
+
+.linkBtn { background: none; border: none; padding: 0; color: var(--primary); cursor: pointer; font-size: var(--fs-sm); align-self: flex-start; }
+.linkBtn:hover { text-decoration: underline; }
+.postList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.postCard { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--surface); display: flex; flex-direction: column; gap: var(--space-2); }
+.postPinned { border-color: var(--lavender-200); background: var(--lavender-50); }
+.postMeta { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; color: var(--text-muted); font-size: var(--fs-sm); }
+.postBody { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.postActions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.commentList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.commentItem { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--fs-sm); border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.commentBody { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }

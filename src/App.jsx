@@ -16,6 +16,7 @@ import LibraryPage from './features/student/LibraryPage';
 import StudentsPage from './features/students/StudentsPage';
 import CoursesPage from './features/content/CoursesPage';
 import CoursePage from './features/content/CoursePage';
+import JoinPage from './features/classes/JoinPage';
 import { LoadingState } from './components/ui/States';
 
 // Heavy teacher-only pages (code editor, markdown) load on demand.
@@ -30,6 +31,8 @@ const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'
 const LessonsPage = lazy(() => import('./features/lessons/LessonsPage'));
 const LessonDetailPage = lazy(() => import('./features/lessons/LessonDetailPage'));
 const StudentLessonPage = lazy(() => import('./features/lessons/StudentLessonPage'));
+const TeacherClassBoardPage = lazy(() => import('./features/classes/TeacherClassBoardPage'));
+const StudentBoardPage = lazy(() => import('./features/classes/StudentBoardPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
 const ReviewPage = lazy(() => import('./features/review/ReviewPage'));
 const ReviewQueuePage = lazy(() => import('./features/review/ReviewQueuePage'));
@@ -45,12 +48,14 @@ export default function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/set-password" element={<SetPasswordPage />} />
+          <Route path="/join/:token" element={<JoinPage />} />
 
           <Route path="/teacher" element={<RequireRole role="teacher"><TeacherLayout /></RequireRole>}>
             <Route index element={<TeacherHomePage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="courses" element={<CoursesPage />} />
             <Route path="courses/:courseId" element={<CoursePage />} />
+            <Route path="classes/:classId" element={<TeacherClassBoardPage />} />
             <Route path="questions" element={<QuestionBankPage />} />
             <Route path="questions/import" element={<ImportsListPage />} />
             <Route path="questions/import/new" element={<NewImportPage />} />
@@ -71,6 +76,7 @@ export default function App() {
             <Route path="subjects" element={<SubjectsPage />} />
             <Route path="subjects/:courseId" element={<SubjectMapPage />} />
             <Route path="library" element={<LibraryPage />} />
+            <Route path="board" element={<StudentBoardPage />} />
             <Route path="lessons/:lessonId" element={<StudentLessonPage />} />
             <Route path="assignments/:assignmentId" element={<WorkspacePage />} />
           </Route>
