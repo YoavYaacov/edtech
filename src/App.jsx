@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './features/auth/AuthProvider';
 import RequireRole from './features/auth/RequireRole';
 import RootRedirect from './features/auth/RootRedirect';
+import FreshOpenRedirect from './features/auth/FreshOpenRedirect';
 import LoginPage from './features/auth/LoginPage';
 import SetPasswordPage from './features/auth/SetPasswordPage';
 import TeacherLayout from './layouts/TeacherLayout';
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <FreshOpenRedirect />
         <Suspense fallback={<LoadingState fullPage />}>
         <Routes>
           <Route path="/" element={<RootRedirect />} />

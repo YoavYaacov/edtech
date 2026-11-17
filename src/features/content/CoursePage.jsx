@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Copy } from 'lucide-react';
+import { showToast } from '../../components/ui/Toast';
+import { buildTopicsExport, copyText } from './topicsExport';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
@@ -63,7 +66,17 @@ export default function CoursePage() {
       <Link to="/teacher/courses" className={styles.backLink}><ChevronRight size={16} aria-hidden="true" />{nav.courses}</Link>
       <PageHeader title={c.title}
         subtitle={c.description || undefined}
-        actions={!editing && <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>{t.editDetails}</Button>} />
+        actions={!editing && (
+          <>
+            {topicsQ.status === 'ready' && (
+              <Button variant="secondary" icon={Copy} onClick={async () => {
+                const ok = await copyText(JSON.stringify(buildTopicsExport(c, topicsQ.data)));
+                showToast(ok ? t.copyForClaudeDone : t.copyForClaudeFail, { kind: ok ? 'success' : 'error' });
+              }}>{t.copyForClaude}</Button>
+            )}
+            <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>{t.editDetails}</Button>
+          </>
+        )} />
       <div className={styles.metaRow}>
         {c.code && <Badge tone="lavender"><span dir="ltr">{c.code}</span></Badge>}
         {courseLanguageList(c).map((l) => <Badge key={l} tone="sky">{languages[l]}</Badge>)}

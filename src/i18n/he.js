@@ -436,6 +436,9 @@ export const languages = {
 };
 
 export const courses = {
+  copyForClaude: 'העתק עדכון ל־Claude',
+  copyForClaudeDone: 'עץ הנושאים הועתק. הדביקו אותו בשיחה עם Claude.',
+  copyForClaudeFail: 'ההעתקה נכשלה. נסו שוב.',
   title: 'קורסים',
   subtitle: 'קורסים, יחידות ונושאים',
   newCourse: 'קורס חדש',
