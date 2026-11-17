@@ -6,6 +6,7 @@ vi.mock('../contentApi', () => api);
 HTMLDialogElement.prototype.showModal ||= function () { this.open = true; };
 HTMLDialogElement.prototype.close ||= function () { this.open = false; };
 
+import { MemoryRouter } from 'react-router-dom';
 import ClassesPanel from '../ClassesPanel';
 
 const classes = [{ id: 'k1', title: 'כיתה א', members: [{ student_id: 's1' }, { student_id: 's2' }] }];
@@ -15,7 +16,21 @@ beforeEach(() => {
   api.fetchEnrollments.mockResolvedValue({ data: [], error: null });
 });
 
+vi.mock('../../classes/classesApi', () => ({
+  fetchActiveJoinLink: vi.fn().mockResolvedValue({ data: null, error: null }),
+  listJoinRequests: vi.fn().mockResolvedValue({ data: [], error: null }),
+  joinUrl: (t) => t,
+}));
+
 describe('ClassesPanel', () => {
+  it('every class card has a visible join-link button that opens the join link panel', async () => {
+    render(<MemoryRouter><ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /כיתות/ }));
+    fireEvent.click(screen.getByRole('button', { name: /קישור הצטרפות ולוח כיתה/ }));
+    expect(await screen.findByText(/אין קישור פעיל/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'יצירת קישור' })).toBeTruthy();
+  });
+
   it('is collapsed by default and toggles on click', async () => {
     render(<ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} />);
     const toggle = screen.getByRole('button', { name: /כיתות/ });
