@@ -24,14 +24,12 @@ function AuthStep({ onNeedMail, redirectTo }) {
   const [tab, setTab] = useState('register'); // students arrive without an account: registering is the default
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
     setError('');
-    if (tab === 'register' && !consent) { setError(t.consentRequired); return; }
     if (tab === 'register' && password.length < 8) { setError(t.passwordHint); return; }
     setBusy(true);
     const res = tab === 'login'
@@ -51,18 +49,11 @@ function AuthStep({ onNeedMail, redirectTo }) {
             style={{ fontWeight: tab === k ? 700 : 400 }} onClick={() => { setTab(k); setError(''); }}>{label}</button>
         ))}
       </div>
-      {tab === 'register' && <p className={styles.muted}>{t.registerExplain}</p>}
       <form className={styles.form} onSubmit={submit} noValidate>
         <TextField label="אימייל" type="email" dir="ltr" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <TextField label="סיסמה" type="password" dir="ltr" required value={password}
           autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
-          hint={tab === 'register' ? t.passwordHint : undefined} onChange={(e) => setPassword(e.target.value)} />
-        {tab === 'register' && (
-          <label className={styles.muted} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>{t.consent}</span>
-          </label>
-        )}
+          onChange={(e) => setPassword(e.target.value)} />
         {error && <Notice>{error}</Notice>}
         <Button type="submit" icon={tab === 'login' ? LogIn : UserPlus} loading={busy} disabled={!email || !password}>
           {tab === 'login' ? 'כניסה' : busy ? t.registering : t.register}
@@ -83,7 +74,6 @@ function PickStep({ students, busy, error, onSubmit }) {
   if (students.length === 0) return <Notice>{t.emptyList}</Notice>;
   return (
     <form className={styles.form} noValidate onSubmit={(e) => { e.preventDefault(); onSubmit(rid, normalizeIdNumber(idNum)); }}>
-      <p className={styles.muted}>{t.pickIntro}</p>
       <label className={styles.muted}>
         {t.pickName}
         <select value={rid} onChange={(e) => setRid(e.target.value)} style={{ display: 'block', width: '100%', minHeight: 44 }}>
@@ -92,10 +82,9 @@ function PickStep({ students, busy, error, onSubmit }) {
         </select>
       </label>
       <TextField label={t.idNumber} dir="ltr" inputMode="numeric" autoComplete="off" maxLength={11} required value={idNum}
-        hint={t.idHint} error={idBad ? t.idInvalid : undefined} onChange={(e) => setIdNum(e.target.value)} />
+        error={idBad ? t.idInvalid : undefined} onChange={(e) => setIdNum(e.target.value)} />
       {error && <Notice>{error}</Notice>}
       <Button type="submit" loading={busy} disabled={!rid || !idNum || idBad}>{busy ? t.verifying : t.verify}</Button>
-      <p className={styles.muted}>{t.missingName}</p>
     </form>
   );
 }
@@ -105,7 +94,6 @@ export default function JoinPage() {
   const { session, profile, isInitializing, signOut } = useAuth();
   const [info, setInfo] = useState(null); // roster_for_join(): {status, class_title, course_title, students}
   const [ticket, setTicket] = useState(() => readTicket(token));
-  const [verifiedName, setVerifiedName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null); // claim_roster() result
@@ -148,7 +136,6 @@ export default function JoinPage() {
     if (err) { setError(errors.generic); return; }
     if (!data?.ok) { setError(t.verifyErrors[data?.reason] ?? errors.generic); return; }
     writeTicket(token, data.ticket);
-    setVerifiedName(data.name ?? '');
     setTicket(data.ticket);
   }
 
@@ -188,8 +175,6 @@ export default function JoinPage() {
   } else {
     body = (<>
       {intro}
-      {verifiedName && <Notice kind="success"><Check size={16} aria-hidden="true" /> {t.verifiedAs(verifiedName)}</Notice>}
-      <strong>{t.createAccount}</strong>
       <AuthStep redirectTo={`${window.location.origin}/join/${token}`} onNeedMail={() => { writeTicket(token, null); setMailSent(true); }} />
       <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>
     </>);

@@ -53,7 +53,7 @@ export default function JoinLinkPanel({ classId }) {
             {expired ? 'פג תוקף' : t.expiresOn(formatDate(active.expires_at))} · {t.usage(active.uses, active.max_uses)}
           </p>
           <div className={styles.classHead}>
-            <Button variant="secondary" icon={Copy} onClick={copy} disabled={expired}>{t.copy}</Button>
+            <Button variant="outline" icon={Copy} onClick={copy} disabled={expired}>{t.copy}</Button>
             <Button variant="ghost" disabled={busy} onClick={() => run(() => revokeJoinLink(classId), link.reload)}>{t.revoke}</Button>
           </div>
         </>
@@ -68,15 +68,13 @@ export default function JoinLinkPanel({ classId }) {
           <input className={styles.inlineInput} style={{ width: 90 }} type="number" min={1} max={1000} value={max}
             onChange={(e) => setMax(e.target.value)} />
         </label>
-        <Button variant="secondary" loading={busy} disabled={!valid}
+        <Button variant="outline" loading={busy} disabled={!valid}
           onClick={() => run(() => createJoinLink(classId, daysNum, maxNum), link.reload)}>
           {active ? t.renew : t.create}
         </Button>
       </div>
-      {active && <p className={styles.muted}>{t.renewNote}</p>}
 
       <RosterPanel classId={classId} />
-      <p className={styles.muted}>{t.privacyNote}</p>
     </div>
   );
 }

@@ -65,14 +65,14 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
                     <option value="">{t.pickStudent}</option>
                     {students.filter((s) => !memberIds.includes(s.id)).map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                   </select>
-                  <Button variant="secondary" disabled={!pick[c.id] || busy}
+                  <Button variant="outline" disabled={!pick[c.id] || busy}
                     onClick={async () => { if (await run(() => setClassMember(c.id, pick[c.id], true))) setPick((p) => ({ ...p, [c.id]: '' })); }}>
                     {t.addMember}
                   </Button>
                 </div>
               )}
               <div className={styles.classHead}>
-                <Button variant="secondary" icon={Link2} aria-expanded={!!linkOpen[c.id]}
+                <Button variant="outline" icon={Link2} aria-expanded={!!linkOpen[c.id]}
                   onClick={() => setLinkOpen((o) => ({ ...o, [c.id]: !o[c.id] }))}>{t.joinLinkToggle}</Button>
               </div>
               {linkOpen[c.id] && <JoinLinkPanel classId={c.id} />}
@@ -85,7 +85,7 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
       <form className={styles.inlineForm} onSubmit={async (e) => { e.preventDefault(); if (name.trim() && await run(() => createClass(courseId, name.trim()))) setName(''); }}>
         <input className={styles.inlineInput} value={name} maxLength={120} placeholder={t.newPlaceholder} aria-label={t.newPlaceholder}
           onChange={(e) => setName(e.target.value)} />
-        <Button type="submit" variant="secondary" loading={busy} disabled={!name.trim()}>{t.add}</Button>
+        <Button type="submit" variant="outline" loading={busy} disabled={!name.trim()}>{t.add}</Button>
       </form>
       <ConfirmDialog open={!!del} danger busy={busy} title={del ? t.deleteTitle(del.title) : ''}
         body={del ? t.deleteBody(del.members.length) : ''} confirmLabel={t.deleteConfirm}

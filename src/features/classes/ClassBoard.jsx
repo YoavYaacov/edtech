@@ -43,7 +43,6 @@ function PostForm({ initial = EMPTY, linkables, submitLabel, busy, error, onSubm
           <input type="checkbox" checked={f.pinned} onChange={(e) => setF((p) => ({ ...p, pinned: e.target.checked }))} /> {t.pinned}
         </label>
       </div>
-      <p className={styles.muted}>{t.modeHint}</p>
       {error && <p className={styles.errorNote} role="alert">{error}</p>}
       <div className={styles.postActions}>
         <Button type="submit" loading={busy} disabled={!f.body.trim()}>{submitLabel}</Button>
@@ -96,7 +95,7 @@ function Comments({ post, isTeacher, onCount }) {
         <form className={styles.inlineForm} onSubmit={send}>
           <input className={styles.inlineInput} value={text} maxLength={1000} aria-label={t.addComment} placeholder={t.addComment}
             onChange={(e) => setText(e.target.value)} />
-          <Button type="submit" variant="secondary" loading={busy} disabled={!text.trim()}>{t.sendComment}</Button>
+          <Button type="submit" variant="outline" loading={busy} disabled={!text.trim()}>{t.sendComment}</Button>
         </form>
       )}
       {error && <p className={styles.errorNote} role="alert">{error}</p>}

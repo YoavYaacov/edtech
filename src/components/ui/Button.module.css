@@ -31,3 +31,6 @@
 .danger:hover:not(:disabled) { background: #8f2e46; }
 .dangerGhost { background: transparent; color: var(--danger); }
 .dangerGhost:hover:not(:disabled) { background: var(--danger-tint); }
+
+.outline { background: transparent; color: var(--text); border-color: var(--border); }
+.outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }

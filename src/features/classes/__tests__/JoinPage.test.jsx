@@ -71,20 +71,17 @@ describe('JoinPage (roster flow)', () => {
     expect(api.verifyRosterEntry).toHaveBeenCalledWith(TOKEN, 'r1', '442852497');
   });
 
-  it('after verification a signed-out student creates an account (register is the default tab, consent required)', async () => {
+  it('after verification a signed-out student creates an account (register is the default tab, no extra checkbox)', async () => {
     renderAt();
     await screen.findByLabelText('השם שלי');
     pick('r1', '936044502');
     api.verifyRosterEntry.mockResolvedValue({ data: { ok: true, ticket: 'T'.repeat(48), name: 'דנה כהן' }, error: null });
     fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
-    expect(await screen.findByText(/אומתו הפרטים של דנה כהן/)).toBeTruthy();
+    expect(await screen.findByLabelText('אימייל')).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByRole('tab', { name: 'חשבון חדש' }).getAttribute('aria-selected')).toBe('true');
     fireEvent.change(screen.getByLabelText('אימייל'), { target: { value: 'a@b.co' } });
     fireEvent.change(screen.getByLabelText('סיסמה'), { target: { value: 'longenough1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'פתיחת חשבון' }));
-    expect(await screen.findByText(/צריך לאשר את התנאים/)).toBeTruthy();
-    expect(auth.value.signUp).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'פתיחת חשבון' }));
     await waitFor(() => expect(auth.value.signUp).toHaveBeenCalledWith('a@b.co', 'longenough1', expect.stringContaining('/join/')));
     expect(await screen.findByText(/שלחנו אימייל/)).toBeTruthy();

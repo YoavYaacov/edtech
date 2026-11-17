@@ -51,7 +51,7 @@ export default function RosterPanel({ classId }) {
       <textarea className={styles.inlineInput} style={{ width: '100%', minHeight: 90 }} dir="auto" value={text}
         aria-label={t.title} placeholder={t.placeholder} onChange={(e) => setText(e.target.value)} />
       <div className={styles.classHead}>
-        <Button variant="secondary" loading={busy} disabled={!text.trim()} onClick={add}>{busy ? t.adding : t.add}</Button>
+        <Button variant="outline" loading={busy} disabled={!text.trim()} onClick={add}>{busy ? t.adding : t.add}</Button>
       </div>
       {msgs.map((m, i) => (
         <p key={i} className={m.kind === 'ok' ? styles.muted : styles.errorNote} role={m.kind === 'ok' ? 'status' : 'alert'}>{m.text}</p>
