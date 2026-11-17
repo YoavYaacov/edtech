@@ -30,7 +30,6 @@ export const terms = {
   lessonLog: 'סיכום שיעור',
   mistakeNotebook: 'מחברת טעויות',
   questionBank: 'מאגר שאלות',
-  lessons: 'שיעורונים',
 };
 
 export const roles = {
@@ -46,6 +45,7 @@ export const nav = {
   studentLibrary: 'ספריית למידה',
   courses: 'קורסים',
   questionBank: 'מאגר שאלות',
+  lessons: 'שיעורונים',
   assignments: 'מטלות',
   reviews: 'בדיקות',
   signOut: 'יציאה',

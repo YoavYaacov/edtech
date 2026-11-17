@@ -1,7 +1,9 @@
 import { supabase } from '../../lib/supabaseClient';
 
+// NOTE: lessons <-> lesson_versions has TWO foreign keys (lesson_versions.lesson_id and lessons.published_version_id),
+// so every embed of lesson_versions must name the FK, otherwise PostgREST answers PGRST201 (ambiguous relationship).
 // Teacher side. Reads go through RLS (owner only); every write is an RPC that re-checks ownership.
-const LESSON_LIST = 'id, title, lesson_key, course_id, published_version_id, is_archived, updated_at, course:courses(id, title), versions:lesson_versions(id, version_no), topics:lesson_topics(topic_id)';
+const LESSON_LIST = 'id, title, lesson_key, course_id, published_version_id, is_archived, updated_at, course:courses(id, title), versions:lesson_versions!lesson_versions_lesson_id_fkey(id, version_no), topics:lesson_topics(topic_id)';
 
 export const fetchLessons = () => supabase.from('lessons').select(LESSON_LIST).order('updated_at', { ascending: false });
 
