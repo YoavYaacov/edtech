@@ -7,9 +7,9 @@ import { EmptyState } from '../../components/ui/States';
 import Collapsible from '../../components/ui/Collapsible';
 import { readOpen, writeOpen } from '../../lib/useCollapsed';
 import { buildTree, nextPosition } from '../../lib/topicTree';
-import { createTopic, deleteTopic, reorderSiblings, updateTopic } from './contentApi';
+import { createTopic, deleteTopic, reorderSiblings, setTopicStatus, updateTopic } from './contentApi';
 import { blockedReason, useSafeDelete } from './useSafeDelete';
-import { common, errors, safeDelete as sd, topics as t } from '../../i18n/he';
+import { common, errors, safeDelete as sd, studentMap, topicStatus as ts, topics as t } from '../../i18n/he';
 import styles from './content.module.css';
 
 const MAX_LEVEL = 3;
@@ -37,7 +37,8 @@ function InlineInput({ initial = '', placeholder, submitLabel, onSubmit, onCance
   );
 }
 
-export default function TopicTree({ courseId, topics, onChanged }) {
+// statuses: Map(topicId -> status) for the SELECTED class. classes: [{ id, title }].
+export default function TopicTree({ courseId, topics, classes = [], classId = '', onClassChange, statuses = new Map(), statusAvailable = true, onChanged }) {
   const [showArchived, setShowArchived] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null); // topic id
@@ -115,6 +116,13 @@ export default function TopicTree({ courseId, topics, onChanged }) {
                 <span className={styles.topicTitle}>{node.title}</span>
               )}
               {node.is_archived && <Badge>{common.archived}</Badge>}
+              {level === 2 && !node.is_archived && statusAvailable && classId && editingId !== node.id && (
+                <select className={styles.statusSelect} aria-label={`${ts.label}: ${node.title}`} title={ts.hint}
+                  value={statuses.get(node.id) ?? 'not_learned'} disabled={busy}
+                  onChange={(e) => { setBusy(true); run(() => setTopicStatus(classId, node.id, e.target.value)).then(() => setBusy(false)); }}>
+                  {['not_learned', 'learning', 'learned'].map((v) => <option key={v} value={v}>{studentMap.status[v]}</option>)}
+                </select>
+              )}
               {editingId !== node.id && (
                 <span className={styles.rowActions}>
                   <button type="button" className={styles.iconBtn} title={common.moveUp} aria-label={`${common.moveUp}: ${node.title}`}
@@ -162,6 +170,14 @@ export default function TopicTree({ courseId, topics, onChanged }) {
     <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
       storageKey={`course:${courseId}:topics`} defaultOpen>
       <p className={styles.muted}>{t.explain}</p>
+      {statusAvailable && (classes.length === 0 ? <p className={styles.muted}>{ts.needClass}</p> : (
+        <label className={styles.classPicker}>
+          <span>{ts.forClass}</span>
+          <select className={styles.statusSelect} value={classId} onChange={(e) => onClassChange?.(e.target.value)}>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+        </label>
+      ))}
       {(error || del.error) && <p className={styles.errorNote} role="alert">{error || del.error}</p>}
       <div className={styles.treeArea}>
         {tree.length === 0 ? (

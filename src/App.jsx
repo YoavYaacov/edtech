@@ -9,6 +9,9 @@ import TeacherLayout from './layouts/TeacherLayout';
 import StudentLayout from './layouts/StudentLayout';
 import TeacherHomePage from './features/dashboard/TeacherHomePage';
 import StudentHomePage from './features/dashboard/StudentHomePage';
+import SubjectsPage from './features/student/SubjectsPage';
+import SubjectMapPage from './features/student/SubjectMapPage';
+import LibraryPage from './features/student/LibraryPage';
 import StudentsPage from './features/students/StudentsPage';
 import CoursesPage from './features/content/CoursesPage';
 import CoursePage from './features/content/CoursePage';
@@ -58,6 +61,9 @@ export default function App() {
 
           <Route path="/student" element={<RequireRole role="student"><StudentLayout /></RequireRole>}>
             <Route index element={<StudentHomePage />} />
+            <Route path="subjects" element={<SubjectsPage />} />
+            <Route path="subjects/:courseId" element={<SubjectMapPage />} />
+            <Route path="library" element={<LibraryPage />} />
             <Route path="assignments/:assignmentId" element={<WorkspacePage />} />
           </Route>
 

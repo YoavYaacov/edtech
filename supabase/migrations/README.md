@@ -21,12 +21,14 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 9 | `20260925000300_feedback_metadata.sql` | 4 | yes (25.09.2026) |
 | 10 | `20260926000100_notifications.sql` | 5 | yes (per project doc) |
 | 11 | `20260929000100_ai_runs.sql` | 6 (Round 1A) | yes (29.09.2026, per owner report) |
-| 12 | `20260930000100_student_auth_hardening.sql` | Round A | NO - not applied in Production |
-| 13 | `20260930000200_course_languages.sql` | Round C1 | NO - not applied in Production |
-| 14 | `20260930000300_question_variants.sql` | Round C1 | NO - not applied in Production |
-| 15 | `20260930000400_language_resolution.sql` | Round C1 | NO - not applied in Production |
-| 16 | `20261001000100_course_sort_order.sql` | Acceptance fixes | NO - not applied in Production |
-| 17 | `20261002000100_ai_variants_and_clone.sql` | Phase 6 final round (C2 + C3) | NO - not applied in Production |
+| 12 | `20260930000100_student_auth_hardening.sql` | Round A | yes (per live ledger, verified 17.11.2026) |
+| 13 | `20260930000200_course_languages.sql` | Round C1 | yes (per live ledger, verified 17.11.2026) |
+| 14 | `20260930000300_question_variants.sql` | Round C1 | yes (per live ledger, verified 17.11.2026) |
+| 15 | `20260930000400_language_resolution.sql` | Round C1 | yes (per live ledger, verified 17.11.2026) |
+| 16 | `20261001000100_course_sort_order.sql` | Acceptance fixes | yes (per live ledger, verified 17.11.2026) |
+| 17 | `20261002000100_ai_variants_and_clone.sql` | Phase 6 final round (C2 + C3) | yes (per live ledger, verified 17.11.2026) |
+| 17b | `20261003000100_question_import_core` | PDF question import | yes (07.10.2026, per live ledger). **The .sql file is NOT in this repo** — add it from the original upload |
+| 18 | `20261117000100_classes_and_topic_status.sql` | Student screen (batch 1) | NO - not applied (awaiting approval) |
 
 Rows 12-15 are applied in Production (per owner report). Row 16 is new. Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
 Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls
