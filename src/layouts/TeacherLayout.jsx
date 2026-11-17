@@ -1,4 +1,4 @@
-import { ClipboardCheck, ClipboardList, FileQuestion, LayoutDashboard, Library, MonitorPlay, Users } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, FileQuestion, GraduationCap, LayoutDashboard, Library, MonitorPlay, Users } from 'lucide-react';
 import AppShell from './AppShell';
 import { nav } from '../i18n/he';
 
@@ -7,6 +7,7 @@ const items = [
   { to: '/teacher', label: nav.teacherHome, icon: LayoutDashboard, end: true },
   { to: '/teacher/students', label: nav.students, icon: Users },
   { to: '/teacher/courses', label: nav.courses, icon: Library },
+  { to: '/teacher/classes', label: nav.classes, icon: GraduationCap },
   { to: '/teacher/lessons', label: nav.lessons, icon: MonitorPlay },
   { to: '/teacher/questions', label: nav.questionBank, icon: FileQuestion },
   { to: '/teacher/assignments', label: nav.assignments, icon: ClipboardList },

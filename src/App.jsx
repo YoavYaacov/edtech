@@ -32,6 +32,7 @@ const LessonsPage = lazy(() => import('./features/lessons/LessonsPage'));
 const LessonDetailPage = lazy(() => import('./features/lessons/LessonDetailPage'));
 const StudentLessonPage = lazy(() => import('./features/lessons/StudentLessonPage'));
 const TeacherClassBoardPage = lazy(() => import('./features/classes/TeacherClassBoardPage'));
+const TeacherClassesPage = lazy(() => import('./features/classes/TeacherClassesPage'));
 const StudentBoardPage = lazy(() => import('./features/classes/StudentBoardPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
 const ReviewPage = lazy(() => import('./features/review/ReviewPage'));
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="courses" element={<CoursesPage />} />
             <Route path="courses/:courseId" element={<CoursePage />} />
+            <Route path="classes" element={<TeacherClassesPage />} />
             <Route path="classes/:classId" element={<TeacherClassBoardPage />} />
             <Route path="questions" element={<QuestionBankPage />} />
             <Route path="questions/import" element={<ImportsListPage />} />

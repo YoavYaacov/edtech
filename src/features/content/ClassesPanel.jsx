@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Link2, Trash2, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Collapsible from '../../components/ui/Collapsible';
@@ -6,7 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import JoinLinkPanel from '../classes/JoinLinkPanel';
 import { createClass, deleteClass, fetchEnrollments, setClassMember } from './contentApi';
 import { useAsync } from '../../lib/useAsync';
-import { classes as t, errors } from '../../i18n/he';
+import { classes as t, errors, teacherClasses as tc } from '../../i18n/he';
 import styles from './content.module.css';
 
 // Class management inside a subject; join links (batch 4) and the board (batch 5) hang off the same classes.
@@ -74,6 +75,7 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
               <div className={styles.classHead}>
                 <Button variant="outline" icon={Link2} aria-expanded={!!linkOpen[c.id]}
                   onClick={() => setLinkOpen((o) => ({ ...o, [c.id]: !o[c.id] }))}>{t.joinLinkToggle}</Button>
+                <Link to={`/teacher/classes/${c.id}`} className={styles.linkBtn}>{tc.board}</Link>
               </div>
               {linkOpen[c.id] && <JoinLinkPanel classId={c.id} />}
             </li>

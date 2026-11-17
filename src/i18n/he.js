@@ -45,6 +45,7 @@ export const nav = {
   studentLibrary: 'ספריית למידה',
   studentBoard: 'לוח הכיתה',
   courses: 'קורסים',
+  classes: 'כיתות',
   questionBank: 'מאגר שאלות',
   lessons: 'שיעורונים',
   assignments: 'מטלות',
@@ -418,7 +419,7 @@ export const classes = {
   deleteTitle: (name) => `למחוק את הכיתה "${name}"?`,
   deleteBody: (n) => `${n === 0 ? 'אין תלמידים בכיתה.' : n === 1 ? 'תלמיד אחד יוסר מהכיתה.' : `${n} תלמידים יוסרו מהכיתה.`} סטטוסי הלמידה של הכיתה יימחקו. התלמידים, המקצוע והנושאים לא יימחקו.`,
   deleteConfirm: 'מחיקת הכיתה',
-  joinLinkToggle: 'קישור הצטרפות ולוח כיתה',
+  joinLinkToggle: 'קישור הצטרפות ורשימה',
 };
 
 export const notFound = {
@@ -1660,4 +1661,14 @@ export const roster = {
   },
   lineError: (line, reason) => `שורה ${line}: ${reason}`,
   idColumn: 'ת״ז',
+};
+
+export const teacherClasses = {
+  title: 'כיתות',
+  subtitle: 'הכיתות שלי, מכל המקצועות. בכל כיתה אפשר לפרסם הודעות ולענות לתלמידים.',
+  board: 'לוח הכיתה',
+  manage: 'ניהול הכיתה',
+  empty: 'אין עדיין כיתות.',
+  emptyBody: 'כיתה נוצרת בעמוד של המקצוע.',
+  toCourses: 'למקצועות',
 };

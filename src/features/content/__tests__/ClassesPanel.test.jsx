@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter as Router } from 'react-router-dom';
+const render = (ui) => rtlRender(<Router>{ui}</Router>);
 
 const api = vi.hoisted(() => ({ fetchEnrollments: vi.fn(), deleteClass: vi.fn(), createClass: vi.fn(), setClassMember: vi.fn() }));
 vi.mock('../contentApi', () => api);
 HTMLDialogElement.prototype.showModal ||= function () { this.open = true; };
 HTMLDialogElement.prototype.close ||= function () { this.open = false; };
 
-import { MemoryRouter } from 'react-router-dom';
 import ClassesPanel from '../ClassesPanel';
 
 const classes = [{ id: 'k1', title: 'כיתה א', members: [{ student_id: 's1' }, { student_id: 's2' }] }];
@@ -24,9 +25,9 @@ vi.mock('../../classes/classesApi', () => ({
 
 describe('ClassesPanel', () => {
   it('every class card has a visible join-link button that opens the join link panel', async () => {
-    render(<MemoryRouter><ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} /></MemoryRouter>);
+    render(<ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /כיתות/ }));
-    fireEvent.click(screen.getByRole('button', { name: /קישור הצטרפות ולוח כיתה/ }));
+    fireEvent.click(screen.getByRole('button', { name: /קישור הצטרפות ורשימה/ }));
     expect(await screen.findByText(/אין קישור פעיל/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'יצירת קישור' })).toBeTruthy();
   });

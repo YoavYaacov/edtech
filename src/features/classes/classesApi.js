@@ -39,6 +39,9 @@ export const joinUrl = (token, origin = typeof window !== 'undefined' ? window.l
 // ---- class board ----
 export const fetchClassInfo = (classId) => supabase.from('classes')
   .select('id, title, course_id, join_requires_approval').eq('id', classId).maybeSingle();
+export const fetchTeacherClasses = () => supabase.from('classes')
+  .select('id, title, course_id, course:courses(title), members:class_students(student_id)')
+  .order('created_at', { ascending: true });
 export const fetchMyClasses = () => supabase.rpc('my_classes');
 export const listPosts = (classId) => supabase.rpc('list_class_posts', { p_class_id: classId, p_limit: 50 });
 export const createPost = (classId, f) => supabase.rpc('create_class_post', {
