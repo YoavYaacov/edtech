@@ -158,6 +158,7 @@ export function fetchClasses(courseId) {
     .eq('course_id', courseId).order('created_at', { ascending: true });
 }
 export const createClass = (courseId, title) => supabase.rpc('create_class', { p_course_id: courseId, p_title: title });
+export const deleteClass = (classId) => supabase.rpc('delete_class', { p_class_id: classId });
 export const setClassMember = (classId, studentId, member) =>
   supabase.rpc('set_class_member', { p_class_id: classId, p_student_id: studentId, p_member: member });
 export function fetchTopicStatuses(courseId) {

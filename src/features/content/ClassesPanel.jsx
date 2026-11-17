@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Collapsible from '../../components/ui/Collapsible';
-import { createClass, fetchEnrollments, setClassMember } from './contentApi';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { createClass, deleteClass, fetchEnrollments, setClassMember } from './contentApi';
 import { useAsync } from '../../lib/useAsync';
 import { classes as t, errors } from '../../i18n/he';
 import styles from './content.module.css';
@@ -14,6 +15,7 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
   const [pick, setPick] = useState({}); // classId -> studentId
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [del, setDel] = useState(null); // class pending deletion
 
   const students = (enrolled.data ?? []).map((e) => e.student).filter(Boolean);
   const nameOf = (id) => students.find((s) => s.id === id)?.full_name ?? '—';
@@ -29,7 +31,7 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
 
   return (
     <Collapsible title={t.title} headingLevel={2} className={styles.panelCollapsible}
-      storageKey={`course:${courseId}:classes`} defaultOpen>
+      storageKey={`course:${courseId}:classes`} defaultOpen={false}>
       <p className={styles.muted}>{t.explain}</p>
       {error && <p className={styles.errorNote} role="alert">{error}</p>}
       <ul className={styles.classList}>
@@ -40,6 +42,8 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
               <div className={styles.classHead}>
                 <span className={styles.className}>{c.title}</span>
                 <span className={styles.muted}>{t.members(memberIds.length)}</span>
+                <button type="button" className={styles.iconBtn} title={t.deleteClass} aria-label={`${t.deleteClass}: ${c.title}`}
+                  disabled={busy} onClick={() => setDel(c)}><Trash2 size={16} /></button>
               </div>
               {memberIds.length === 0 ? <p className={styles.muted}>{t.noMembers}</p> : (
                 <ul className={styles.memberList}>
@@ -76,6 +80,10 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
           onChange={(e) => setName(e.target.value)} />
         <Button type="submit" variant="secondary" loading={busy} disabled={!name.trim()}>{t.add}</Button>
       </form>
+      <ConfirmDialog open={!!del} danger busy={busy} title={del ? t.deleteTitle(del.title) : ''}
+        body={del ? t.deleteBody(del.members.length) : ''} confirmLabel={t.deleteConfirm}
+        onCancel={() => setDel(null)}
+        onConfirm={async () => { const id = del.id; if (await run(() => deleteClass(id))) setDel(null); }} />
     </Collapsible>
   );
 }

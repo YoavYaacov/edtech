@@ -26,6 +26,9 @@ const ImportReviewPage = lazy(() => import('./features/imports/ImportReviewPage'
 const ImportRunPage = lazy(() => import('./features/imports/ImportRunPage'));
 const AssignmentsPage = lazy(() => import('./features/assignments/AssignmentsPage'));
 const AssignmentPage = lazy(() => import('./features/assignments/AssignmentPage'));
+const LessonsPage = lazy(() => import('./features/lessons/LessonsPage'));
+const LessonDetailPage = lazy(() => import('./features/lessons/LessonDetailPage'));
+const StudentLessonPage = lazy(() => import('./features/lessons/StudentLessonPage'));
 const WorkspacePage = lazy(() => import('./features/workspace/WorkspacePage'));
 const ReviewPage = lazy(() => import('./features/review/ReviewPage'));
 const ReviewQueuePage = lazy(() => import('./features/review/ReviewQueuePage'));
@@ -53,6 +56,8 @@ export default function App() {
             <Route path="questions/import/:importId/review" element={<ImportReviewPage />} />
             <Route path="questions/new" element={<QuestionEditorPage key="new" />} />
             <Route path="questions/:questionId" element={<QuestionEditorPage />} />
+            <Route path="lessons" element={<LessonsPage />} />
+            <Route path="lessons/:lessonId" element={<LessonDetailPage />} />
             <Route path="assignments" element={<AssignmentsPage />} />
             <Route path="assignments/:assignmentId" element={<AssignmentPage />} />
             <Route path="assignments/:assignmentId/review" element={<ReviewPage />} />
@@ -64,6 +69,7 @@ export default function App() {
             <Route path="subjects" element={<SubjectsPage />} />
             <Route path="subjects/:courseId" element={<SubjectMapPage />} />
             <Route path="library" element={<LibraryPage />} />
+            <Route path="lessons/:lessonId" element={<StudentLessonPage />} />
             <Route path="assignments/:assignmentId" element={<WorkspacePage />} />
           </Route>
 

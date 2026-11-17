@@ -28,7 +28,9 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 16 | `20261001000100_course_sort_order.sql` | Acceptance fixes | yes (per live ledger, verified 17.11.2026) |
 | 17 | `20261002000100_ai_variants_and_clone.sql` | Phase 6 final round (C2 + C3) | yes (per live ledger, verified 17.11.2026) |
 | 17b | `20261003000100_question_import_core` | PDF question import | yes (07.10.2026, per live ledger). **The .sql file is NOT in this repo** — add it from the original upload |
-| 18 | `20261117000100_classes_and_topic_status.sql` | Student screen (batch 1) | NO - not applied (awaiting approval) |
+| 18 | `20261117000100_classes_and_topic_status.sql` | Student screen (batch 1) | yes (applied by owner, verified in ledger) |
+| 19 | `20261117000200_delete_class.sql` | Batch 2: delete class (atomic) | NO - not applied (awaiting approval) |
+| 20 | `20261117000300_lessons.sql` | Batch 2: lessons engine | NO - not applied (run after row 19) |
 
 Rows 12-15 are applied in Production (per owner report). Row 16 is new. Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
 Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls
