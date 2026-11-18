@@ -4,6 +4,8 @@ import PageHeader from '../../components/ui/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
 import { useAsync } from '../../lib/useAsync';
 import { fetchTeacherClasses } from './classesApi';
+import TaChangesBanner from './TaChangesBanner';
+import IdentityBackupCard from './IdentityBackupCard';
 import { classes as ct, errors, teacherClasses as t } from '../../i18n/he';
 import styles from '../content/content.module.css';
 
@@ -13,6 +15,8 @@ export default function TeacherClassesPage() {
   return (
     <>
       <PageHeader title={t.title} subtitle={t.subtitle} />
+      <TaChangesBanner />
+      <IdentityBackupCard />
       {q.status === 'loading' && <LoadingState />}
       {q.status === 'error' && <ErrorState message={errors.generic} onRetry={q.reload} />}
       {q.status === 'ready' && q.data.length === 0 && (

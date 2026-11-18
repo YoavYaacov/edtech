@@ -34,7 +34,9 @@ select version, name, applied_at from private.applied_migrations order by versio
 | 21 | `20261118000100_join_links_and_identity.sql` | Batch 4: join links, encrypted ID, join approval | NO - not applied (run after row 20; needs Vault + pgcrypto) |
 | 22 | `20261118000200_class_board.sql` | Batch 5: class board + comments | NO - not applied (run after row 21) |
 | 23 | `20261118000300_class_roster.sql` | Batch 4b: class roster + join by name and ID | NO - not applied (run after row 22) |
-| 24 | `20261118000400_pending_join.sql` | Registration fix: server-side pending join bound to the e-mail | NO - not applied (run after row 23) |
+| 24 | `20261118000400_pending_join.sql` | Registration fix: server-side pending join bound to the e-mail | Yes (verified in production 2026-11-18) |
+| 25 | `20261119000100_teacherapp_sync.sql` | Batch 7: read-only sync of class rosters from TeacherApp (groups -> classes, preview/approve, change notices); roster rows may exist without an ID | NO - not applied (run after row 24) |
+| 26 | `20261119000600_teacherapp_id_sync.sql` | Batch 7: full ID sync from TeacherApp (server-side decrypt with the TeacherApp key and re-encrypt with this system's key; kinds id_fill / id_conflict / id_conflict_claimed) + identity backup package (HMAC-signed, restore by stable ids). Needs row 25 AND TeacherApp migration 0009 + Vault secret `teacherapp_identity_key` | NO - not applied (awaiting approval) |
 
 Rows 12-15 are applied in Production (per owner report). Row 16 is new. Rows 12-15 must be run in this order, one file per SQL Editor query. Each checks the previous version and refuses to run out of order.
 Edge Functions `invite-student` (changed) and `delete-student` (new) must be deployed by hand after row 12-13 (the new invite flow calls

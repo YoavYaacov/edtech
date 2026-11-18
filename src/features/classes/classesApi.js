@@ -33,6 +33,15 @@ export const verifyRosterEntry = (token, rosterId, idNumber) =>
   supabase.rpc('verify_roster_entry', { p_token: token, p_roster_id: rosterId, p_id: idNumber });
 export const claimRoster = (ticket) => supabase.rpc('claim_roster', { p_ticket: ticket });
 // pending join, kept on the server: the verified ticket is bound to the e-mail being registered, and the signed-in
+// ---- TeacherApp bridge (read-only; only the TeacherApp owner gets data, everyone else {ok:false, reason:'not_available'}) ----
+export const taGroups = () => supabase.rpc('ta_groups');
+export const taLinkGroup = (courseId, groupId, classId = null) =>
+  supabase.rpc('ta_link_group', { p_course_id: courseId, p_group_id: groupId, p_class_id: classId });
+export const taUnlink = (classId) => supabase.rpc('ta_unlink', { p_class_id: classId });
+export const taPreview = (classId) => supabase.rpc('ta_preview', { p_class_id: classId });
+export const taApply = (classId, decisions) => supabase.rpc('ta_apply', { p_class_id: classId, p_decisions: decisions });
+export const taPending = () => supabase.rpc('ta_pending');
+
 // student (on ANY device) finishes the join after confirming that e-mail
 export const bindTicketEmail = (ticket, email) => supabase.rpc('bind_ticket_email', { p_ticket: ticket, p_email: email });
 export const completePendingJoin = () => supabase.rpc('complete_pending_join');
@@ -72,3 +81,8 @@ export const fetchLinkables = async (courseId) => {
   ]);
   return { data: { lessons: lessons.data ?? [], assignments: assignments.data ?? [] }, error: lessons.error || assignments.error };
 };
+
+// identity backup package (owner only; ciphertext + HMAC, no plain IDs, no names)
+export const identityBackupStatus = () => supabase.rpc('identity_backup_status');
+export const identityBackupExport = () => supabase.rpc('identity_backup_export');
+export const identityBackupImport = (pkg, apply) => supabase.rpc('identity_backup_import', { p_package: pkg, p_apply: apply });
