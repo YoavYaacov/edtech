@@ -15,12 +15,17 @@ beforeEach(() => {
   window.sessionStorage.clear();
   Object.values(api).forEach((f) => f.mockReset());
   api.fetchEnrollments.mockResolvedValue({ data: [], error: null });
+  Object.values(ta).forEach((f) => f.mockReset());
+  ta.taGroups.mockResolvedValue({ data: { ok: false, reason: 'not_available' }, error: null });
+  ta.taPreview.mockResolvedValue({ data: { ok: true, group: 'g', items: [], linked: 0, without_id: 0 }, error: null });
 });
 
+const ta = vi.hoisted(() => ({ taGroups: vi.fn(), taPreview: vi.fn(), taLinkGroup: vi.fn(), taApply: vi.fn(), taUnlink: vi.fn() }));
 vi.mock('../../classes/classesApi', () => ({
   fetchActiveJoinLink: vi.fn().mockResolvedValue({ data: null, error: null }),
   listJoinRequests: vi.fn().mockResolvedValue({ data: [], error: null }),
   joinUrl: (t) => t,
+  ...ta,
 }));
 
 describe('ClassesPanel', () => {
@@ -63,4 +68,24 @@ describe('ClassesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ביטול' }));
     expect(api.deleteClass).not.toHaveBeenCalled();
   });
+
+  it('hides every TeacherApp control for anyone who is not the TeacherApp owner', async () => {
+    render(<ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /כיתות/ }));
+    await waitFor(() => expect(ta.taGroups).toHaveBeenCalled());
+    expect(screen.queryByTestId('ta-link-form')).toBeNull();
+    expect(screen.queryByText(/מקושרת ל־TeacherApp/)).toBeNull();
+  });
+
+  it('offers unlinked TeacherApp groups, and shows the sync panel on a class that is linked to one', async () => {
+    ta.taGroups.mockResolvedValue({ data: { ok: true, groups: [
+      { id: 'g1', name: 'קבוצה מקושרת', students: 20, class_id: 'k1' }, { id: 'g2', name: 'קבוצה חדשה', students: 9, class_id: null }] }, error: null });
+    render(<ClassesPanel courseId="c1" classes={classes} onChanged={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /כיתות/ }));
+    expect(await screen.findByText('מקושרת ל־TeacherApp: קבוצה מקושרת')).toBeTruthy();
+    const form = await screen.findByTestId('ta-link-form');
+    expect(form.textContent).toContain('קבוצה חדשה');
+    expect(form.textContent).not.toContain('קבוצה מקושרת');
+  });
 });
+

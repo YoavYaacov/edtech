@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useAsync } from '../../lib/useAsync';
 import { fetchMyStudents } from '../students/studentsApi';
 import { fetchCourses } from '../content/contentApi';
+import TaChangesBanner from '../classes/TaChangesBanner';
 import { fetchActiveQuestionCount } from '../questions/questionsApi';
 import { common, errors, teacherHome as t } from '../../i18n/he';
 import styles from './dashboard.module.css';
@@ -21,6 +22,7 @@ export default function TeacherHomePage() {
   return (
     <>
       <PageHeader title={common.hello(profile.full_name)} />
+      <TaChangesBanner />
       {status === 'loading' && <LoadingState />}
       {status === 'error' && <ErrorState message={errors.generic} onRetry={reload} />}
       {status === 'ready' && active.length === 0 && (

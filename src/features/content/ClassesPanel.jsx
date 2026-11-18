@@ -5,6 +5,9 @@ import Button from '../../components/ui/Button';
 import Collapsible from '../../components/ui/Collapsible';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import JoinLinkPanel from '../classes/JoinLinkPanel';
+import TaSyncPanel from '../classes/TaSyncPanel';
+import TaLinkForm from '../classes/TaLinkForm';
+import { taGroups } from '../classes/classesApi';
 import { createClass, deleteClass, fetchEnrollments, setClassMember } from './contentApi';
 import { useAsync } from '../../lib/useAsync';
 import { classes as t, errors, teacherClasses as tc } from '../../i18n/he';
@@ -13,6 +16,11 @@ import styles from './content.module.css';
 // Class management inside a subject; join links (batch 4) and the board (batch 5) hang off the same classes.
 export default function ClassesPanel({ courseId, classes, onChanged }) {
   const enrolled = useAsync(() => fetchEnrollments(courseId), [courseId]);
+  // TeacherApp bridge: only the TeacherApp owner gets groups back; for everyone else the whole feature stays hidden
+  const ta = useAsync(async () => { const { data, error: err } = await taGroups(); return { data: err || !data?.ok ? null : data.groups, error: null }; }, [courseId]);
+  const taGroupOf = (classId) => (ta.data ?? []).find((g) => g.class_id === classId);
+  const unlinkedGroups = (ta.data ?? []).filter((g) => !g.class_id);
+  const freeClasses = classes.filter((c) => !taGroupOf(c.id));
   const [name, setName] = useState('');
   const [pick, setPick] = useState({}); // classId -> studentId
   const [busy, setBusy] = useState(false);
@@ -77,6 +85,8 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
                   onClick={() => setLinkOpen((o) => ({ ...o, [c.id]: !o[c.id] }))}>{t.joinLinkToggle}</Button>
                 <Link to={`/teacher/classes/${c.id}`} className={styles.linkBtn}>{tc.board}</Link>
               </div>
+              {taGroupOf(c.id) && <TaSyncPanel classId={c.id} groupName={taGroupOf(c.id).name} onChanged={onChanged}
+                onUnlinked={async () => { await ta.reload(); await onChanged(); }} />}
               {linkOpen[c.id] && <JoinLinkPanel classId={c.id} />}
             </li>
           );
@@ -84,6 +94,8 @@ export default function ClassesPanel({ courseId, classes, onChanged }) {
       </ul>
       {students.length > 0 && <p className={styles.muted}>{t.moveNote}</p>}
       {enrolled.status === 'ready' && students.length === 0 && <p className={styles.muted}>{t.noEnrolled}</p>}
+      <TaLinkForm courseId={courseId} groups={unlinkedGroups} freeClasses={freeClasses}
+        onLinked={async () => { await ta.reload(); await onChanged(); }} />
       <form className={styles.inlineForm} onSubmit={async (e) => { e.preventDefault(); if (name.trim() && await run(() => createClass(courseId, name.trim()))) setName(''); }}>
         <input className={styles.inlineInput} value={name} maxLength={120} placeholder={t.newPlaceholder} aria-label={t.newPlaceholder}
           onChange={(e) => setName(e.target.value)} />

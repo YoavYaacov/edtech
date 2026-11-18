@@ -37,15 +37,16 @@ export default function RosterPanel({ classId }) {
     if (rows.length === 0) { setMsgs(out); return; }
     setBusy(true);
     // the server takes up to 300 rows per call
-    let added = 0;
+    let added = 0; let filled = 0;
     for (let at = 0; at < rows.length; at += 300) {
       const part = rows.slice(at, at + 300);
       const { data, error: err } = await rosterAdd(classId, part.map((r) => ({ first: r.first, last: r.last, id: r.id })));
       if (err) { setBusy(false); setError(errors.generic); return; }
       for (const e of data.errors ?? []) out.push({ kind: 'error', text: t.lineError(part[e.row - 1].line, t.rowErrors[e.reason] ?? errors.generic) });
-      added += data.added ?? 0;
+      added += data.added ?? 0; filled += data.filled ?? 0;
     }
     setBusy(false);
+    if (filled > 0) out.unshift({ kind: 'ok', text: t.filled(filled) });
     if (added > 0) out.unshift({ kind: 'ok', text: t.added(added) });
     setMsgs(out);
     // keep only the lines that did not make it, so the teacher can fix and resend them
@@ -83,7 +84,7 @@ export default function RosterPanel({ classId }) {
         <ul className={styles.memberList}>
           {items.map((r) => (
             <li key={r.id} className={styles.memberChip}>
-              {r.first_name} {r.last_name} · <span dir="ltr">{r.id_masked}</span> · {r.claimed ? t.status.claimed : t.status.waiting}
+              {r.first_name} {r.last_name} · {r.needs_id ? t.needsId : <span dir="ltr">{r.id_masked}</span>} · {r.claimed ? t.status.claimed : t.status.waiting}
               {!r.claimed && (
                 <button type="button" className={styles.iconBtn} title={t.remove} aria-label={`${t.remove}: ${r.first_name} ${r.last_name}`}
                   disabled={busy} onClick={() => remove(r.id)}><X size={14} /></button>
