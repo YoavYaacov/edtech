@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Upload, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAsync } from '../../lib/useAsync';
 import { rosterAdd, rosterList, rosterRemove } from './classesApi';
-import { parseRosterText } from './rosterText';
+import { parseRosterText, rowsToText } from './rosterText';
+import { readRosterFile } from './fileRows';
 import { errors, roster as t } from '../../i18n/he';
 import styles from '../content/content.module.css';
 
@@ -15,6 +16,19 @@ export default function RosterPanel({ classId }) {
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState([]); // [{kind:'ok'|'error', text}]
   const [error, setError] = useState('');
+  const fileRef = useRef(null);
+
+  async function onFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(''); setMsgs([]);
+    try {
+      setText(rowsToText(await readRosterFile(file)));
+    } catch (err) {
+      setError(t.fileErrors[err.message] ?? t.fileErrors.read);
+    }
+  }
 
   async function add() {
     setError(''); setMsgs([]);
@@ -22,11 +36,17 @@ export default function RosterPanel({ classId }) {
     const out = problems.map((p) => ({ kind: 'error', text: t.lineError(p.line, t.rowErrors[p.reason]) }));
     if (rows.length === 0) { setMsgs(out); return; }
     setBusy(true);
-    const { data, error: err } = await rosterAdd(classId, rows.map((r) => ({ first: r.first, last: r.last, id: r.id })));
+    // the server takes up to 300 rows per call
+    let added = 0;
+    for (let at = 0; at < rows.length; at += 300) {
+      const part = rows.slice(at, at + 300);
+      const { data, error: err } = await rosterAdd(classId, part.map((r) => ({ first: r.first, last: r.last, id: r.id })));
+      if (err) { setBusy(false); setError(errors.generic); return; }
+      for (const e of data.errors ?? []) out.push({ kind: 'error', text: t.lineError(part[e.row - 1].line, t.rowErrors[e.reason] ?? errors.generic) });
+      added += data.added ?? 0;
+    }
     setBusy(false);
-    if (err) { setError(errors.generic); return; }
-    for (const e of data.errors ?? []) out.push({ kind: 'error', text: t.lineError(rows[e.row - 1].line, t.rowErrors[e.reason] ?? errors.generic) });
-    if (data.added > 0) out.unshift({ kind: 'ok', text: t.added(data.added) });
+    if (added > 0) out.unshift({ kind: 'ok', text: t.added(added) });
     setMsgs(out);
     // keep only the lines that did not make it, so the teacher can fix and resend them
     const failed = new Set(out.filter((m) => m.kind === 'error').map((m) => Number(/\d+/.exec(m.text)?.[0])));
@@ -52,6 +72,8 @@ export default function RosterPanel({ classId }) {
         aria-label={t.title} placeholder={t.placeholder} onChange={(e) => setText(e.target.value)} />
       <div className={styles.classHead}>
         <Button variant="outline" loading={busy} disabled={!text.trim()} onClick={add}>{busy ? t.adding : t.add}</Button>
+        <Button variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={16} aria-hidden="true" /> {t.upload}</Button>
+        <input ref={fileRef} type="file" hidden accept=".xlsx,.csv,.tsv,.txt" aria-label={t.upload} onChange={onFile} />
       </div>
       {msgs.map((m, i) => (
         <p key={i} className={m.kind === 'ok' ? styles.muted : styles.errorNote} role={m.kind === 'ok' ? 'status' : 'alert'}>{m.text}</p>
