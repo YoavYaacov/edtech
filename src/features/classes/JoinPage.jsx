@@ -101,7 +101,7 @@ function PickStep({ students, busy, error, onSubmit }) {
 
 export default function JoinPage() {
   const { token } = useParams();
-  const { session, profile, isInitializing, signOut, signIn } = useAuth();
+  const { session, profile, isInitializing, signOut, signIn, reloadProfile } = useAuth();
   const [info, setInfo] = useState(null); // roster_for_join(): {status, class_title, course_title, students}
   const [ticket, setTicket] = useState(() => readTicket(token));
   const [busy, setBusy] = useState(false);
@@ -127,7 +127,8 @@ export default function JoinPage() {
 
   const isStudent = !!session && profile?.role === 'student';
 
-  const goHome = () => navigate('/student', { replace: true });
+  // joining writes the student's name into the profile: reload it first, so the home screen greets by name
+  const goHome = async () => { try { await reloadProfile?.(); } catch { /* the home screen loads it again */ } navigate('/student', { replace: true }); };
 
   // signed-in student, any device/tab: finish a join verified earlier (server-side), or notice it is already done
   useEffect(() => {

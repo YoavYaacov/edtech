@@ -217,3 +217,14 @@ describe('JoinPage (link opened twice / other device / existing ID)', () => {
     expect(auth.value.signOut).toHaveBeenCalled();
   });
 });
+
+describe('JoinPage (profile refresh)', () => {
+  it('reloads the profile after joining, so the name saved by the join shows on the home screen', async () => {
+    const reloadProfile = vi.fn().mockResolvedValue(undefined);
+    auth.value = { ...student(), reloadProfile };
+    api.completePendingJoin.mockResolvedValue({ data: { ok: true, status: 'joined', class_id: 'k1' }, error: null });
+    renderAt();
+    expect(await screen.findByText('HOME')).toBeTruthy();
+    expect(reloadProfile).toHaveBeenCalled();
+  });
+});
