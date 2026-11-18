@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-const api = vi.hoisted(() => ({ rosterForJoin: vi.fn(), verifyRosterEntry: vi.fn(), claimRoster: vi.fn() }));
+const api = vi.hoisted(() => ({ rosterForJoin: vi.fn(), verifyRosterEntry: vi.fn(), claimRoster: vi.fn(),
+  bindTicketEmail: vi.fn(), completePendingJoin: vi.fn(), joinStatus: vi.fn() }));
 const auth = vi.hoisted(() => ({ value: {} }));
 vi.mock('../classesApi', () => api);
 vi.mock('../../auth/AuthProvider', () => ({ useAuth: () => auth.value }));
@@ -11,7 +12,7 @@ import JoinPage from '../JoinPage';
 
 const TOKEN = 'a'.repeat(32);
 const renderAt = (token = TOKEN) => render(
-  <MemoryRouter initialEntries={[`/join/${token}`]}><Routes><Route path="/join/:token" element={<JoinPage />} /></Routes></MemoryRouter>,
+  <MemoryRouter initialEntries={[`/join/${token}`]}><Routes><Route path="/join/:token" element={<JoinPage />} /><Route path="/student" element={<div>HOME</div>} /></Routes></MemoryRouter>,
 );
 const list = { status: 'ok', class_title: 'כיתה א', course_title: 'מתמטיקה', students: [{ id: 'r1', name: 'דנה כהן' }, { id: 'r2', name: 'נועה בר' }] };
 const signedOut = () => ({ session: null, profile: null, isInitializing: false, signIn: vi.fn().mockResolvedValue({ error: null }),
@@ -26,10 +27,56 @@ beforeEach(() => {
   window.sessionStorage.clear();
   Object.values(api).forEach((f) => f.mockReset());
   api.rosterForJoin.mockResolvedValue({ data: list, error: null });
+  api.bindTicketEmail.mockResolvedValue({ data: { ok: true }, error: null });
+  api.completePendingJoin.mockResolvedValue({ data: { ok: false, reason: 'none' }, error: null });
+  api.joinStatus.mockResolvedValue({ data: { member: false }, error: null });
   auth.value = signedOut();
 });
 
 describe('JoinPage (roster flow)', () => {
+  it('confirmation link opened on another device: the server finishes the pending join and the student lands on home', async () => {
+    auth.value = student();
+    api.completePendingJoin.mockResolvedValue({ data: { ok: true, status: 'joined', class_id: 'k1' }, error: null });
+    renderAt();
+    expect(await screen.findByText('HOME')).toBeTruthy();
+    expect(api.verifyRosterEntry).not.toHaveBeenCalled(); // no second name / ID step
+    expect(screen.queryByLabelText('השם שלי')).toBeNull();
+  });
+
+  it('opening the link again as an existing member goes home without duplicates or questions', async () => {
+    auth.value = student();
+    api.joinStatus.mockResolvedValue({ data: { member: true }, error: null });
+    renderAt();
+    expect(await screen.findByText('HOME')).toBeTruthy();
+    expect(api.claimRoster).not.toHaveBeenCalled();
+  });
+
+  it('existing member sees home even when the link has expired since', async () => {
+    auth.value = student();
+    api.rosterForJoin.mockResolvedValue({ data: { status: 'expired' }, error: null });
+    api.joinStatus.mockResolvedValue({ data: { member: true }, error: null });
+    renderAt();
+    expect(await screen.findByText('HOME')).toBeTruthy();
+  });
+
+  it('a signed-in account that never joined (created before the fix) verifies name + ID once and joins', async () => {
+    auth.value = student();
+    api.verifyRosterEntry.mockResolvedValue({ data: { ok: true, ticket: 'T'.repeat(48), name: 'דנה' }, error: null });
+    api.claimRoster.mockResolvedValue({ data: { ok: true, status: 'joined' }, error: null });
+    renderAt();
+    await screen.findByLabelText('השם שלי');
+    pick('r1', '936044502');
+    fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
+    expect(await screen.findByText('HOME')).toBeTruthy();
+  });
+
+  it('a pending join that cannot complete for a real reason (other class) is explained, not hidden', async () => {
+    auth.value = student();
+    api.completePendingJoin.mockResolvedValue({ data: { ok: false, reason: 'other_class' }, error: null });
+    renderAt();
+    expect(await screen.findByText(/כיתה אחרת באותו מקצוע/)).toBeTruthy();
+  });
+
   it('malformed token never reaches the server', async () => {
     renderAt('short');
     expect(await screen.findByText(/הקישור אינו תקף/)).toBeTruthy();
@@ -84,6 +131,8 @@ describe('JoinPage (roster flow)', () => {
     fireEvent.change(screen.getByLabelText('סיסמה'), { target: { value: 'longenough1' } });
     fireEvent.click(screen.getByRole('button', { name: 'פתיחת חשבון' }));
     await waitFor(() => expect(auth.value.signUp).toHaveBeenCalledWith('a@b.co', 'longenough1', expect.stringContaining('/join/')));
+    expect(api.bindTicketEmail).toHaveBeenCalledWith('T'.repeat(48), 'a@b.co');
+    expect(api.bindTicketEmail.mock.invocationCallOrder[0]).toBeLessThan(auth.value.signUp.mock.invocationCallOrder[0]);
     expect(await screen.findByText(/שלחנו אימייל/)).toBeTruthy();
   });
 
@@ -96,7 +145,7 @@ describe('JoinPage (roster flow)', () => {
     expect(api.claimRoster).not.toHaveBeenCalled();
     pick('r1', '936044502');
     fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
-    expect(await screen.findByText(/הצטרפתם לכיתה "כיתה א"/)).toBeTruthy();
+    expect(await screen.findByText('HOME')).toBeTruthy();
     expect(api.claimRoster).toHaveBeenCalledTimes(1);
     expect(api.claimRoster).toHaveBeenCalledWith('T'.repeat(48));
   });
@@ -106,7 +155,7 @@ describe('JoinPage (roster flow)', () => {
     auth.value = student();
     api.claimRoster.mockResolvedValue({ data: { ok: true, status: 'already_member' }, error: null });
     renderAt();
-    expect(await screen.findByText(/כבר בכיתה הזו/)).toBeTruthy();
+    expect(await screen.findByText('HOME')).toBeTruthy();
     expect(api.claimRoster).toHaveBeenCalledWith('K'.repeat(48));
   });
 

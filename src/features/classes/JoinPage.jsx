@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { LogIn, UserPlus, Check } from 'lucide-react';
 import AuthLayout from '../auth/AuthLayout';
 import { useAuth } from '../auth/AuthProvider';
@@ -7,7 +7,7 @@ import Button from '../../components/ui/Button';
 import TextField from '../../components/ui/TextField';
 import { LoadingState } from '../../components/ui/States';
 import { authErrorMessage } from '../../lib/authErrors';
-import { claimRoster, rosterForJoin, verifyRosterEntry } from './classesApi';
+import { bindTicketEmail, claimRoster, completePendingJoin, joinStatus, rosterForJoin, verifyRosterEntry } from './classesApi';
 import { isValidIsraeliId, normalizeIdNumber } from './identity';
 import { errors, joinPage as t } from '../../i18n/he';
 import styles from '../auth/authForms.module.css';
@@ -19,7 +19,7 @@ function Notice({ kind = 'error', children }) {
     role={kind === 'success' ? 'status' : 'alert'}>{children}</p>;
 }
 
-function AuthStep({ onNeedMail, redirectTo }) {
+function AuthStep({ onNeedMail, redirectTo, ticket, onTicketLost }) {
   const { signIn, signUp } = useAuth();
   const [tab, setTab] = useState('register'); // students arrive without an account: registering is the default
   const [email, setEmail] = useState('');
@@ -32,6 +32,16 @@ function AuthStep({ onNeedMail, redirectTo }) {
     setError('');
     if (tab === 'register' && password.length < 8) { setError(t.passwordHint); return; }
     setBusy(true);
+    if (tab === 'register') {
+      // the server remembers who this verified ticket belongs to, so the confirmation link works on any device
+      const { data: b, error: be } = await bindTicketEmail(ticket, email.trim());
+      if (be || !b?.ok) {
+        setBusy(false);
+        if (b?.reason === 'ticket_invalid' || b?.reason === 'bound') { onTicketLost(b.reason === 'bound' ? 'bound' : 'ticket_invalid'); return; }
+        setError(errors.generic);
+        return;
+      }
+    }
     const res = tab === 'login'
       ? await signIn(email.trim(), password)
       : await signUp(email.trim(), password, redirectTo);
@@ -99,7 +109,9 @@ export default function JoinPage() {
   const [result, setResult] = useState(null); // claim_roster() result
   const [mailSent, setMailSent] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [startup, setStartup] = useState(false); // signed-in student: pending join / membership checked
   const claiming = useRef(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let alive = true;
@@ -110,6 +122,28 @@ export default function JoinPage() {
 
   const isStudent = !!session && profile?.role === 'student';
 
+  const goHome = () => navigate('/student', { replace: true });
+
+  // signed-in student, any device/tab: finish a join verified earlier (server-side), or notice it is already done
+  useEffect(() => {
+    if (!isStudent || startup || result) return undefined;
+    let alive = true;
+    (async () => {
+      const { data, error: err } = await completePendingJoin();
+      if (!alive) return;
+      if (err) { setFailed(true); return; }
+      if (data?.ok) { writeTicket(token, null); goHome(); return; }
+      const silent = ['none', 'revoked', 'expired', 'full', 'ticket_invalid', 'taken'];
+      if (data && !silent.includes(data.reason)) { setResult(data); setStartup(true); return; }
+      const { data: st } = await joinStatus(token);
+      if (!alive) return;
+      if (st?.member) { writeTicket(token, null); goHome(); return; }
+      setStartup(true);
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, token]);
+
   async function claim(tk) {
     if (claiming.current) return;
     claiming.current = true;
@@ -119,15 +153,16 @@ export default function JoinPage() {
     claiming.current = false;
     if (err) { setFailed(true); return; }
     writeTicket(token, null);
-    if (!data?.ok && data?.reason === 'ticket_invalid') setTicket(null);
+    if (data?.ok) { goHome(); return; }
+    if (data?.reason === 'ticket_invalid') setTicket(null);
     setResult(data);
   }
 
   // a verified ticket plus a signed-in student: join without any further step
   useEffect(() => {
-    if (isStudent && ticket && !result && info?.status === 'ok') claim(ticket);
+    if (isStudent && startup && ticket && !result && info?.status === 'ok') claim(ticket);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStudent, ticket, info]);
+  }, [isStudent, startup, ticket, info]);
 
   async function verify(rid, idNumber) {
     setBusy(true); setError('');
@@ -142,7 +177,7 @@ export default function JoinPage() {
   function startOver() { writeTicket(token, null); setTicket(null); setResult(null); setError(''); }
 
   if (failed) return <AuthLayout title={t.title}><Notice>{errors.generic}</Notice></AuthLayout>;
-  if (!info || isInitializing) return <AuthLayout title={t.title}><LoadingState label={t.checking} /></AuthLayout>;
+  if (!info || isInitializing || (isStudent && !startup && !result)) return <AuthLayout title={t.title}><LoadingState label={t.checking} /></AuthLayout>;
   if (info.status !== 'ok') {
     return <AuthLayout title={t.title}><Notice>{t[info.status] ?? t.invalid}</Notice></AuthLayout>;
   }
@@ -158,7 +193,7 @@ export default function JoinPage() {
     } else {
       body = (<>
         <Notice>{t.results[result.reason] ?? errors.generic}</Notice>
-        {result.reason === 'ticket_invalid' && <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>}
+        {['ticket_invalid', 'bound'].includes(result.reason) && <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>}
       </>);
     }
   } else if (session && !isStudent) {
@@ -175,7 +210,8 @@ export default function JoinPage() {
   } else {
     body = (<>
       {intro}
-      <AuthStep redirectTo={`${window.location.origin}/join/${token}`} onNeedMail={() => { writeTicket(token, null); setMailSent(true); }} />
+      <AuthStep redirectTo={`${window.location.origin}/join/${token}`} ticket={ticket} onNeedMail={() => setMailSent(true)}
+        onTicketLost={(reason) => { startOver(); setResult({ ok: false, reason }); }} />
       <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>
     </>);
   }

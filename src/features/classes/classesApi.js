@@ -32,6 +32,11 @@ export const rosterForJoin = (token) => supabase.rpc('roster_for_join', { p_toke
 export const verifyRosterEntry = (token, rosterId, idNumber) =>
   supabase.rpc('verify_roster_entry', { p_token: token, p_roster_id: rosterId, p_id: idNumber });
 export const claimRoster = (ticket) => supabase.rpc('claim_roster', { p_ticket: ticket });
+// pending join, kept on the server: the verified ticket is bound to the e-mail being registered, and the signed-in
+// student (on ANY device) finishes the join after confirming that e-mail
+export const bindTicketEmail = (ticket, email) => supabase.rpc('bind_ticket_email', { p_ticket: ticket, p_email: email });
+export const completePendingJoin = () => supabase.rpc('complete_pending_join');
+export const joinStatus = (token) => supabase.rpc('join_status', { p_token: token });
 
 export const joinUrl = (token, origin = typeof window !== 'undefined' ? window.location.origin : '') =>
   `${origin}/join/${token}`;
