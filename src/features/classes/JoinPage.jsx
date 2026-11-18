@@ -19,9 +19,9 @@ function Notice({ kind = 'error', children }) {
     role={kind === 'success' ? 'status' : 'alert'}>{children}</p>;
 }
 
-function AuthStep({ onNeedMail, redirectTo, ticket, onTicketLost }) {
+function AuthStep({ onNeedMail, redirectTo, ticket, onTicketLost, initialTab = 'register', loginOnly = false }) {
   const { signIn, signUp } = useAuth();
-  const [tab, setTab] = useState('register'); // students arrive without an account: registering is the default
+  const [tab, setTab] = useState(loginOnly ? 'login' : initialTab); // students arrive without an account: registering is the default
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -47,18 +47,18 @@ function AuthStep({ onNeedMail, redirectTo, ticket, onTicketLost }) {
       : await signUp(email.trim(), password, redirectTo);
     setBusy(false);
     if (res.error) { setError(authErrorMessage(res.error)); return; }
-    if (tab === 'register' && !res.data?.session) onNeedMail();
+    if (tab === 'register' && !res.data?.session) onNeedMail({ email: email.trim(), password });
     // otherwise onAuthStateChange updates the session and the page moves on by itself
   }
 
   return (
     <>
-      <div role="tablist" className={styles.muted} style={{ display: 'flex', gap: 'var(--space-4)' }}>
+      {!loginOnly && <div role="tablist" className={styles.muted} style={{ display: 'flex', gap: 'var(--space-4)' }}>
         {[['register', t.tabRegister], ['login', t.tabLogin]].map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={styles.linkButton}
             style={{ fontWeight: tab === k ? 700 : 400 }} onClick={() => { setTab(k); setError(''); }}>{label}</button>
         ))}
-      </div>
+      </div>}
       <form className={styles.form} onSubmit={submit} noValidate>
         <TextField label="אימייל" type="email" dir="ltr" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <TextField label="סיסמה" type="password" dir="ltr" required value={password}
@@ -101,13 +101,18 @@ function PickStep({ students, busy, error, onSubmit }) {
 
 export default function JoinPage() {
   const { token } = useParams();
-  const { session, profile, isInitializing, signOut } = useAuth();
+  const { session, profile, isInitializing, signOut, signIn } = useAuth();
   const [info, setInfo] = useState(null); // roster_for_join(): {status, class_title, course_title, students}
   const [ticket, setTicket] = useState(() => readTicket(token));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null); // claim_roster() result
-  const [mailSent, setMailSent] = useState(false);
+  const [mailSent, setMailSent] = useState(null); // {email, password} kept in memory only, to continue after confirming elsewhere
+  const [preferLogin, setPreferLogin] = useState(false);
+  // the confirmation link is single use: opened a second time (another device, a mail scanner) it comes back with an error
+  const [linkUsed] = useState(() => /error_code=otp_expired|error=access_denied/.test(`${window.location.hash}${window.location.search}`));
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkMsg, setCheckMsg] = useState('');
   const [failed, setFailed] = useState(false);
   const [startup, setStartup] = useState(false); // signed-in student: pending join / membership checked
   const claiming = useRef(false);
@@ -174,6 +179,24 @@ export default function JoinPage() {
     setTicket(data.ticket);
   }
 
+  // the account may have been confirmed on another device: signing in with what was typed finishes the join (server-side)
+  async function continueAfterConfirm(silent = false) {
+    if (!mailSent || checkBusy) return;
+    setCheckBusy(true); setCheckMsg('');
+    const res = await signIn(mailSent.email, mailSent.password);
+    setCheckBusy(false);
+    if (res?.error && !silent) setCheckMsg(t.notConfirmedYet);
+  }
+  useEffect(() => {
+    if (!mailSent || session) return undefined;
+    const onVisible = () => { if (document.visibilityState === 'visible') continueAfterConfirm(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mailSent, session, checkBusy]);
+
+  function toExistingAccount() { signOut(); setPreferLogin(true); setResult(null); setTicket(null); writeTicket(token, null); }
+
   function startOver() { writeTicket(token, null); setTicket(null); setResult(null); setError(''); }
 
   if (failed) return <AuthLayout title={t.title}><Notice>{errors.generic}</Notice></AuthLayout>;
@@ -193,6 +216,7 @@ export default function JoinPage() {
     } else {
       body = (<>
         <Notice>{t.results[result.reason] ?? errors.generic}</Notice>
+        {result.reason === 'id_in_use' && <button type="button" className={styles.linkButton} onClick={toExistingAccount}>{t.toExistingAccount}</button>}
         {['ticket_invalid', 'bound'].includes(result.reason) && <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>}
       </>);
     }
@@ -203,14 +227,25 @@ export default function JoinPage() {
     </>);
   } else if (isStudent && ticket) {
     body = <LoadingState label={t.joining} />;
+  } else if (linkUsed && !session && !ticket) {
+    // the link was already used (e.g. on the phone): the join is finished on the server, so signing in is enough
+    body = (<>
+      <Notice>{t.linkUsed}</Notice>
+      <AuthStep loginOnly redirectTo={`${window.location.origin}/join/${token}`} ticket={null} onNeedMail={() => {}} onTicketLost={() => {}} />
+      <button type="button" className={styles.linkButton} onClick={() => { window.history.replaceState(null, '', window.location.pathname); window.location.reload(); }}>{t.startOver}</button>
+    </>);
   } else if (!ticket) {
     body = (<>{intro}<PickStep students={info.students ?? []} busy={busy} error={error} onSubmit={verify} /></>);
   } else if (mailSent) {
-    body = <Notice kind="success">{t.checkEmail}</Notice>;
+    body = (<>
+      <Notice kind="success">{t.checkEmail}</Notice>
+      <Button variant="outline" loading={checkBusy} onClick={() => continueAfterConfirm(false)}>{t.confirmedContinue}</Button>
+      {checkMsg && <Notice>{checkMsg}</Notice>}
+    </>);
   } else {
     body = (<>
       {intro}
-      <AuthStep redirectTo={`${window.location.origin}/join/${token}`} ticket={ticket} onNeedMail={() => setMailSent(true)}
+      <AuthStep redirectTo={`${window.location.origin}/join/${token}`} ticket={ticket} initialTab={preferLogin ? 'login' : 'register'} onNeedMail={(c) => setMailSent(c)}
         onTicketLost={(reason) => { startOver(); setResult({ ok: false, reason }); }} />
       <button type="button" className={styles.linkButton} onClick={startOver}>{t.startOver}</button>
     </>);

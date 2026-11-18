@@ -159,7 +159,7 @@ describe('JoinPage (roster flow)', () => {
     expect(api.claimRoster).toHaveBeenCalledWith('K'.repeat(48));
   });
 
-  it.each([['id_in_use', /כבר משויך לחשבון אחר/], ['taken', /כבר נרשם בחשבון אחר/], ['other_class', /כיתה אחרת באותו מקצוע/], ['blocked', /אי אפשר להצטרף/], ['full', /מספר ההצטרפויות/]])(
+  it.each([['id_in_use', /כבר יש חשבון עם תעודת הזהות/], ['taken', /כבר נרשם בחשבון אחר/], ['other_class', /כיתה אחרת באותו מקצוע/], ['blocked', /אי אפשר להצטרף/], ['full', /מספר ההצטרפויות/]])(
     'claim refusal %s is explained', async (reason, re) => {
       window.sessionStorage.setItem(`hevanti:ticket:${TOKEN}`, 'K'.repeat(48));
       auth.value = student();
@@ -182,5 +182,38 @@ describe('JoinPage (roster flow)', () => {
     renderAt();
     expect(await screen.findByText(/מחוברים כמורים/)).toBeTruthy();
     expect(api.claimRoster).not.toHaveBeenCalled();
+  });
+});
+
+describe('JoinPage (link opened twice / other device / existing ID)', () => {
+  it('a used confirmation link (error in the URL) explains and offers login only, without asking for name + ID', async () => {
+    window.location.hash = '#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired';
+    renderAt();
+    expect(await screen.findByText(/הקישור כבר נוצל/)).toBeTruthy();
+    expect(screen.queryByLabelText('השם שלי')).toBeNull();
+    expect(screen.getByLabelText('אימייל')).toBeTruthy();
+    window.location.hash = '';
+  });
+
+  it('after registering, the waiting screen lets the student continue once the e-mail was confirmed elsewhere', async () => {
+    api.verifyRosterEntry.mockResolvedValue({ data: { ok: true, ticket: 'T'.repeat(48), name: 'דנה' }, error: null });
+    renderAt();
+    await screen.findByLabelText('השם שלי');
+    pick('r1', '936044502');
+    fireEvent.click(screen.getByRole('button', { name: 'המשך' }));
+    fireEvent.change(await screen.findByLabelText('אימייל'), { target: { value: 'a@b.co' } });
+    fireEvent.change(screen.getByLabelText('סיסמה'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'פתיחת חשבון' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'אימתתי, להמשיך' }));
+    await waitFor(() => expect(auth.value.signIn).toHaveBeenCalledWith('a@b.co', 'password123'));
+  });
+
+  it('an ID that already belongs to an account points to logging into it', async () => {
+    auth.value = student();
+    api.completePendingJoin.mockResolvedValue({ data: { ok: false, reason: 'id_in_use' }, error: null });
+    renderAt();
+    expect(await screen.findByText(/כבר יש חשבון עם תעודת הזהות/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'כניסה לחשבון הקיים' }));
+    expect(auth.value.signOut).toHaveBeenCalled();
   });
 });
